@@ -4,7 +4,7 @@ import { pixelRatio } from '../lib/motion'
 
 /**
  * Seeded star field with a faint Milky Way band. Drawn once per resize; a handful of
- * brighter stars twinkle with CSS so no animation loop runs.
+ * brighter stars twinkle as four-point glints with CSS so no animation loop runs.
  */
 export default function Starfield({ className, density = 1, band = true }: { className?: string; density?: number; band?: boolean }) {
   const canvas = useRef<HTMLCanvasElement>(null)
@@ -75,15 +75,15 @@ export default function Starfield({ className, density = 1, band = true }: { cla
 
   // Deterministic twinkles so server and browser render the same markup.
   const rnd = mulberry32(77)
-  const twinkles = Array.from({ length: 22 }, (_, i) => ({
-    i, x: rnd() * 100, y: rnd() * 100, d: (rnd() * 6).toFixed(2), s: (2.5 + rnd() * 4).toFixed(2),
+  const twinkles = Array.from({ length: 26 }, (_, i) => ({
+    i, x: rnd() * 100, y: rnd() * 100, d: (rnd() * 6).toFixed(2), s: (2.5 + rnd() * 4).toFixed(2), z: Math.round(8 + Math.pow(rnd(), 2) * 13),
   }))
 
   return (
     <div className={`starfield ${className ?? ''}`} aria-hidden="true">
       <canvas ref={canvas} />
       {twinkles.map(t => (
-        <i key={t.i} style={{ left: `${t.x}%`, top: `${t.y}%`, animationDelay: `${t.d}s`, animationDuration: `${t.s}s` }} />
+        <i key={t.i} style={{ left: `${t.x}%`, top: `${t.y}%`, width: t.z, height: t.z, animationDelay: `${t.d}s`, animationDuration: `${t.s}s` }} />
       ))}
     </div>
   )

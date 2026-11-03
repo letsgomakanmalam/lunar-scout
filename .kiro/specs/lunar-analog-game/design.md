@@ -48,7 +48,7 @@ Each mission has 8 probes. Each scan of a new site uses one.
 AAA game presentation, grounded in Apollo hardware rather than generic sci-fi.
 - Colour has meaning: Apollo gold foil `#e9b24c` = player actions and rewards; Earth blue `#72b6ff` = Earth and data; regolith white `#ebe6da` = the Moon. Space black `#05070d`, glass panels `#0d1320`, pass `#5fe0a2`, fail `#ff6f5e`.
 - Type: Michroma (Eurostile-style, 1960s space-age) for the logo and screen titles, Barlow Condensed for HUD labels and numbers, Barlow for body text. Self-hosted in `src/assets/fonts` so the demo works offline.
-- Motifs: réseau crosses (the + marks on Apollo Hasselblad photos) frame imaging surfaces; chamfered corners mark things you can act on.
+- Motifs: four-point star glints frame imaging surfaces and twinkle in the sky, and shooting stars cross the title screen; chamfered corners mark things you can act on.
 - Signature moment: the title screen's live 3D Moon (real mare layout, crater relief) with the gold Earth-to-Moon trajectory.
 - Game feel: HUD with animated counters, Q/E tab switching, scan sequence, "Site certified" reward screen, touchdown sequence, synthesized UI sound (M to mute). Reduced motion is respected everywhere.
 
