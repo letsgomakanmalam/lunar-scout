@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "name": "Validate site and mission data",
+  "description": "After editing any data file, check ids, coordinates, 0-1 ranges, source links and that every mission is still passable.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["src/data/**/*.ts"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A data file in src/data was edited. Run `npm run validate:data`. Fix any failure. Every factor must cite a sourceId that exists in src/data/sources.ts. Never invent precise numbers: if a value is a guess, keep estimate: true. If src/data/sources.ts changed, also update DATA_USED.md so it lists the same datasets."
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Pre-submission check",
+  "description": "Run manually before submitting to Space Apps: full check, docs and checklist review.",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Run `npm run check`. Then check the repo is ready: confirm DATA_USED.md matches src/data/sources.ts, AI_USE.md is filled in, README.md has the live URL, and the About page names the official challenge. Report what is done and what is missing. The demo, pitch and project page live in the team's separate presentation folder, not in this repo, so do not create them here. Do not submit anything yourself."
+  }
+}

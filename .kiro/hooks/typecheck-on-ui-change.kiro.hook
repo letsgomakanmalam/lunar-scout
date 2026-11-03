@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "name": "Type-check UI changes",
+  "description": "After editing screens or components, run the TypeScript check.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["src/screens/**/*.tsx", "src/components/**/*.tsx", "src/App.tsx"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A UI file was edited. Run `npm run typecheck` and fix any TypeScript errors. Check the change still works on a 375px-wide phone screen and keeps visible keyboard focus."
+  }
+}

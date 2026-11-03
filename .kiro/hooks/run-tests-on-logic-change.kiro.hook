@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "name": "Run tests when game logic changes",
+  "description": "After editing scoring, base or store logic, run the unit tests and fix any failures.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["src/lib/**/*.ts", "src/store.ts"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A game logic file was just edited. Run `npm test` in the terminal. If any test fails, explain why in one sentence and fix the code (not the test) unless the test itself is wrong. Do not change scoring rules described in .kiro/specs/lunar-analog-game/design.md without asking."
+  }
+}

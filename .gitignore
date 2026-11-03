@@ -1,0 +1,8 @@
+node_modules
+dist
+qr-dev.png
+qr-site.png
+*.log
+.DS_Store
+# Java tooling that other extensions may drop into the workspace
+oracleJdk-*

@@ -1,0 +1,4 @@
+{
+  "recommendations": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"],
+  "unwantedRecommendations": ["oracle.oracle-java", "redhat.java", "vscjava.vscode-java-pack"]
+}
