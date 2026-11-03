@@ -49,6 +49,8 @@ export default function EarthMap({ selectedId, scannedIds, onSelect }: Props) {
         },
         center: [20, 20],
         zoom: 1.2,
+        // On touch screens one finger scrolls the page; two fingers move the map.
+        cooperativeGestures: window.matchMedia('(pointer: coarse)').matches,
         maxZoom: 8,
         attributionControl: { compact: true },
       })

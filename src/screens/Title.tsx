@@ -12,7 +12,7 @@ import { prefersReducedMotion } from '../lib/motion'
 const SUN: Vec3 = [-0.86, 0.26, 0.44]
 
 export default function Title() {
-  const { go, tutorialDone, completed, researchPoints, muted, toggleMuted } = useGame()
+  const { go, tutorialDone, completed, researchPoints, muted, toggleMuted, music, toggleMusic, startTutorial } = useGame()
   const returning = Object.keys(completed).length > 0
   const stars = totalStars(completed)
   const root = useRef<HTMLDivElement>(null)
@@ -141,16 +141,22 @@ export default function Title() {
             <kbd className="mi-key" aria-hidden="true">Enter</kbd>
           </button>
           <button className="menu-item" onClick={() => go('missions')}><span className="mi-label">Missions</span></button>
+          <button className="menu-item" onClick={startTutorial}><span className="mi-label">Tutorial</span></button>
           <button className="menu-item" onClick={() => go('about')}><span className="mi-label">How it works</span></button>
-          <button className="menu-item" aria-pressed={!muted} onClick={toggleMuted}>
-            <span className="mi-label">Sound <Icon name={muted ? 'soundOff' : 'soundOn'} size={18} /> {muted ? 'off' : 'on'}</span>
-          </button>
         </nav>
+        <div className="title-toggles">
+          <button className="toggle-chip" aria-pressed={music} onClick={toggleMusic}>
+            <Icon name={music ? 'music' : 'musicOff'} size={17} />Music {music ? 'on' : 'off'}
+          </button>
+          <button className="toggle-chip" aria-pressed={!muted} onClick={toggleMuted}>
+            <Icon name={muted ? 'soundOff' : 'soundOn'} size={17} />Sound effects {muted ? 'off' : 'on'}
+          </button>
+        </div>
       </div>
 
       <footer className="title-foot">
         <span>NASA Space Apps Challenge 2026, Kuala Lumpur</span>
-        <span className="title-keys" aria-hidden="true"><kbd>↑</kbd><kbd>↓</kbd> choose <kbd>Enter</kbd> select <kbd>M</kbd> sound</span>
+        <span className="title-keys" aria-hidden="true"><kbd>↑</kbd><kbd>↓</kbd> choose <kbd>Enter</kbd> select <kbd>N</kbd> music <kbd>M</kbd> sound</span>
         <span>v0.1.0</span>
       </footer>
     </div>

@@ -12,7 +12,7 @@ export default function Missions() {
         <h1 className="screen-title">Missions</h1>
         <p className="lede">Each mission tests gear for a real place on the Moon. Finish one to open the next.</p>
       </header>
-      <ol className="campaign">
+      <ol className="campaign" data-tut="campaign">
         {MISSIONS.map((m, i) => {
           const open = missionUnlocked(m.id, completed)
           const rec = completed[m.id]

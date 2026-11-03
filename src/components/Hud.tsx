@@ -25,9 +25,14 @@ function useDeltas(value: number) {
 }
 
 export default function Hud({ nav }: { nav: NavItem[] }) {
-  const { screen, go, researchPoints, completed, muted, toggleMuted } = useGame()
+  const { screen, go, researchPoints, completed, muted, toggleMuted, music, toggleMusic } = useGame()
   const stars = totalStars(completed)
   const deltas = useDeltas(researchPoints)
+
+  // Keep the active tab visible when the tab bar scrolls on small screens.
+  useEffect(() => {
+    document.querySelector('.hud-tabs .tab.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [screen])
 
   return (
     <header className="hud">
@@ -40,7 +45,7 @@ export default function Hud({ nav }: { nav: NavItem[] }) {
         <kbd className="tab-key" aria-hidden="true" title="Previous tab">Q</kbd>
         {nav.map(n => (
           <button
-            key={n.id} className={`tab ${n.id === screen ? 'active' : ''}`} data-sfx="tab"
+            key={n.id} className={`tab ${n.id === screen ? 'active' : ''}`} data-sfx="tab" data-tut={`tab-${n.id}`}
             aria-current={n.id === screen ? 'page' : undefined} onClick={() => go(n.id)}
           >
             <Icon name={n.icon} size={16} />
@@ -64,7 +69,10 @@ export default function Hud({ nav }: { nav: NavItem[] }) {
           <span className="res-num">{stars}</span>
           <span className="res-unit">of {MISSIONS.length * 3}</span>
         </div>
-        <button className="hud-icon" aria-label="Sound" aria-pressed={!muted} title="Sound (M)" onClick={toggleMuted}>
+        <button className="hud-icon" aria-label="Music" aria-pressed={music} title="Music (N)" onClick={toggleMusic}>
+          <Icon name={music ? 'music' : 'musicOff'} size={18} />
+        </button>
+        <button className="hud-icon" aria-label="Sound effects" aria-pressed={!muted} title="Sound effects (M)" onClick={toggleMuted}>
           <Icon name={muted ? 'soundOff' : 'soundOn'} size={18} />
         </button>
       </div>

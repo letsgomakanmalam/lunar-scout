@@ -6,6 +6,7 @@ import { MISSIONS, missionById, targetById } from './data/moon'
 import { EARTH_SITES } from './data/earthSites'
 import { computeASI, starsFor } from './lib/scoring'
 import { emptyGrid, moduleCost, type BaseGrid } from './lib/base'
+import { TUTORIAL, type TutEvent } from './data/tutorial'
 
 export type Screen = 'title' | 'explore' | 'land' | 'build' | 'missions' | 'journal' | 'dashboard' | 'about'
 
@@ -31,9 +32,15 @@ interface GameState {
   journal: JournalEntry[]
   leaderboard: LeaderEntry[]
   muted: boolean
+  music: boolean
+  tutorialFlags: TutEvent[]
 
   go: (s: Screen) => void
   toggleMuted: () => void
+  toggleMusic: () => void
+  startTutorial: () => void
+  nextTutorialStep: () => void
+  tutorialEvent: (e: TutEvent) => void
   setTutorialStep: (n: number) => void
   finishTutorial: () => void
   setMission: (id: string) => void
@@ -66,6 +73,8 @@ const initial = {
   journal: [] as JournalEntry[],
   leaderboard: [] as LeaderEntry[],
   muted: false,
+  music: true,
+  tutorialFlags: [] as TutEvent[],
 }
 
 const now = () => new Date().toISOString()
@@ -87,6 +96,27 @@ export const useGame = create<GameState>()(
 
       go: screen => set({ screen }),
       toggleMuted: () => set({ muted: !get().muted }),
+      toggleMusic: () => set({ music: !get().music }),
+
+      // Guided tutorial. Flags remember what the player has already done, so steps they
+      // finished early are skipped; a returning player is never asked to move their base.
+      startTutorial: () => set({
+        tutorialDone: false, tutorialStep: 0, tutorialFlags: get().landingId ? ['landed'] : [],
+        activeMissionId: 'tutorial', selectedSiteId: null, screen: 'explore',
+      }),
+      nextTutorialStep: () => {
+        const { tutorialStep, tutorialFlags } = get()
+        let i = tutorialStep + 1
+        while (i < TUTORIAL.length && TUTORIAL[i].waitFor && tutorialFlags.includes(TUTORIAL[i].waitFor!)) i++
+        if (i >= TUTORIAL.length) set({ tutorialDone: true, tutorialStep: 0 })
+        else set({ tutorialStep: i })
+      },
+      tutorialEvent: e => {
+        const s = get()
+        if (s.tutorialDone) return
+        if (!s.tutorialFlags.includes(e)) set({ tutorialFlags: [...s.tutorialFlags, e] })
+        if (TUTORIAL[s.tutorialStep]?.waitFor === e) get().nextTutorialStep()
+      },
       setTutorialStep: tutorialStep => set({ tutorialStep }),
       finishTutorial: () => set({ tutorialDone: true, tutorialStep: 0 }),
       setMission: activeMissionId => set({ activeMissionId, selectedSiteId: null, screen: 'explore' }),
@@ -178,7 +208,7 @@ export const useGame = create<GameState>()(
         set({ leaderboard })
       },
 
-      resetAll: () => set({ ...initial, grid: emptyGrid(), leaderboard: get().leaderboard, tutorialDone: get().tutorialDone, muted: get().muted }),
+      resetAll: () => set({ ...initial, grid: emptyGrid(), leaderboard: get().leaderboard, tutorialDone: get().tutorialDone, muted: get().muted, music: get().music }),
     }),
     {
       name: 'lunar-scout-v1',

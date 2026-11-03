@@ -23,7 +23,16 @@ npm run check      # typecheck + tests + build
 - **Main menu:** arrow keys to choose, Enter to select.
 - **Q / E:** previous / next tab. **Esc:** back to the main menu.
 - **1 to 6:** pick a module on the Base screen.
-- **M:** sound on or off (also in the top-right corner).
+- **N:** music on or off. **M:** sound effects on or off (both also in the top-right corner).
+
+## Tutorial
+New players get a guided tour: Mission Control highlights the real buttons and moves on when you do each step (scan, certify, land, build). Replay it from the title screen (**Tutorial**) or the About page. The steps live in `src/data/tutorial.ts`.
+
+## Music and sound
+The soundtrack is original and generated in the browser (`src/lib/music.ts`), so there are no audio files to download or licence. Music and sound effects have separate switches on the title screen and in the top bar. To use your own track instead, put it in `public/music/` and set `CUSTOM_TRACK` in `src/lib/music.ts`. Only use music you have the rights to.
+
+## Phones, tablets and big screens
+Phones (portrait and landscape), tablets, laptops and large monitors each get their own layout. On touch screens, scroll the page with one finger and move the map with two. Low-power devices draw the title Moon at a lower resolution.
 
 ## Put it online with a QR code
 1. Create a GitHub repo and push this folder to the `main` branch.

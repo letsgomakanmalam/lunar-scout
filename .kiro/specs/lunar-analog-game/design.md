@@ -25,7 +25,7 @@ MISSIONS ──► EXPLORE EARTH (scan, certify) ──► research points ─�
 | Progress | `#dashboard` | Rank, stats, mission log, local leaderboard, reset |
 | About | `#about` | Challenge, how scoring works, site codex, sources |
 
-A 3-step tutorial overlay appears on the Explore screen until finished or skipped.
+A guided tutorial (11 steps in `src/data/tutorial.ts`) spans Explore, Landing site, Base and Missions. Each step spotlights a real control; action steps advance when the player does them (`tutorialEvent`), and steps already done are skipped. It never blocks input and can be skipped or replayed.
 
 ### Missions
 | Mission | Moon target | Weights | Pass | Reward | Unlocks |
@@ -128,7 +128,8 @@ Routing uses plain `#hash` names so screens can be bookmarked.
 | `globe.ts` / `moonTexture.ts` | Canvas globe renderer and procedural Moon/Earth textures | `prepareGlobe`, `renderMoon`, `moonTextureSteps` |
 | `sfx.ts` | Synthesized UI sounds, respects mute | `sfx(name)` |
 | `AsiRadar` | Site vs target chart | `result: ScanResult` |
-| `Tutorial` | First-run 3-step overlay | reads/writes store |
+| `Tutorial` | Guided tour: spotlights the real control, advances on player actions | steps in `data/tutorial.ts`; store `tutorialEvent`, `nextTutorialStep`, `startTutorial` |
+| `music.ts` | Original generative soundtrack (Web Audio), moods for title and game, ducks under fanfares | `music.play()`, `pause()`, `setMood()`, `renderScore()` |
 | `scoring.ts` | ASI and stars | `computeASI(site, target, mission)`, `starsFor(asi, pass, probes)`, `strengthsAndWeaknesses(result)` |
 | `base.ts` | Base rules | `moduleCost`, `modulePower`, `powerBalance`, `crewCapacity`, `isOperational`, `rankFor` |
 | `store.ts` | Game actions | `scan`, `certify`, `chooseLanding`, `place`, `upgrade`, `remove`, `addNote`, `saveScore`, `resetAll` |

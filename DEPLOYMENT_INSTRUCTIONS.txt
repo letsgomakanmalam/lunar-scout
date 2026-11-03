@@ -1,0 +1,56 @@
+═══════════════════════════════════════════════════════════════
+  DEPLOY LUNAR SCOUT TO GITHUB PAGES - 24/7 HOSTING
+═══════════════════════════════════════════════════════════════
+
+✅ STEP 1: CREATE GITHUB REPOSITORY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Go to: https://github.com/new
+2. Repository name: lunar-scout
+3. Make it PUBLIC (required for free GitHub Pages)
+4. DON'T check "Initialize with README"
+5. Click "Create repository"
+
+
+✅ STEP 2: PUSH YOUR CODE (Run these in PowerShell)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+cd "c:\Users\soont\Downloads\Nasa-lunar-scout-AAA\lunar-scout"
+
+git remote add origin https://github.com/letsgomakanmalam/lunar-scout.git
+
+git push -u origin main
+
+
+✅ STEP 3: ENABLE GITHUB PAGES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Go to your repository on GitHub
+2. Click "Settings" tab
+3. Click "Pages" in the left sidebar
+4. Under "Source", select "GitHub Actions"
+5. Click "Save"
+
+
+✅ STEP 4: WAIT FOR DEPLOYMENT (2-3 minutes)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Go to "Actions" tab in your repository
+2. Watch the workflow run (it will build and deploy automatically)
+3. Once complete, your site will be live!
+
+
+🌐 YOUR LIVE SITE WILL BE AT:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+https://letsgomakanmalam.github.io/lunar-scout/
+
+The site will run 24/7 even when your laptop is off! 🚀
+
+
+📱 BONUS: QR CODE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+After deployment, GitHub will generate a QR code for your site.
+Download it from the "Actions" tab > Click on the workflow run > 
+Scroll down to "Artifacts" > Download "site-qr"
+
+
+═══════════════════════════════════════════════════════════════
+Need help? The deployment is already configured! Just follow
+the steps above and your site will be live automatically.
+═══════════════════════════════════════════════════════════════

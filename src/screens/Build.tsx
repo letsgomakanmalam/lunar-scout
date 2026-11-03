@@ -55,7 +55,7 @@ export default function Build() {
     setFocus(null)
     if (!g.unlocked.includes(selected)) { sfx('error'); return setNote('That module is still locked. Finish its mission first.') }
     const cost = moduleCost(selected, landing)
-    if (g.place(i, selected)) sfx('place')
+    if (g.place(i, selected)) { sfx('place'); g.tutorialEvent('placed') }
     else { sfx('error'); setNote(`Not enough research points. ${moduleById(selected).name} costs ${cost}.`) }
   }
 
@@ -64,7 +64,7 @@ export default function Build() {
       <aside className="panel">
         <h2>Modules</h2>
         <p className="meta">Landed at {landing.name}</p>
-        <ul className="palette">
+        <ul className="palette" data-tut="palette">
           {MODULES.map((m, i) => {
             const locked = !g.unlocked.includes(m.id)
             const p = m.power[0]
@@ -94,7 +94,7 @@ export default function Build() {
       </aside>
 
       <section className="grid-col">
-        <div className="lunar-grid" style={{ gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)` }} role="group" aria-label="Base layout">
+        <div className="lunar-grid" style={{ gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)` }} role="group" aria-label="Base layout" data-tut="grid">
           {g.grid.map((cell, i) => (
             <button
               key={i}
@@ -114,7 +114,7 @@ export default function Build() {
         {note && <p className="message" role="status">{note}</p>}
       </section>
 
-      <aside className="panel">
+      <aside className="panel" data-tut="status">
         <h2>Base status</h2>
         <p className={`status ${operational ? 'ok' : 'warn'}`}><Icon name={operational ? 'check' : 'info'} size={22} />{operational ? 'Operational' : 'Not operational yet'}</p>
         <ul className="checklist">

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { MoonTexture } from '../lib/moonTexture'
 import { loadMoon, peekMoon } from '../lib/textureCache'
 import { prepareGlobeSteps, projectToView, renderMoon, runSteps, runStepsAsync, type Vec3 } from '../lib/globe'
-import { pixelRatio, prefersReducedMotion } from '../lib/motion'
+import { isLowPower, pixelRatio, prefersReducedMotion } from '../lib/motion'
 
 export interface GlobeMarker {
   id: string
@@ -67,7 +67,8 @@ export default function MoonGlobe({
     const el = canvas.current
     const ctx = el?.getContext('2d')
     if (!el || !ctx || !tex) return
-    const res = Math.max(32, Math.min(maxRes, Math.round(size * pixelRatio())))
+    const cap = isLowPower() ? Math.min(maxRes, 520) : maxRes
+    const res = Math.max(32, Math.min(cap, Math.round(size * pixelRatio())))
     const viewTilt = tLat != null ? clampTilt(tLat) : tilt
     const reduce = prefersReducedMotion()
     let cancelled = false

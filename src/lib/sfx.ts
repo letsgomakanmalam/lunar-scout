@@ -1,4 +1,6 @@
 import { useGame } from '../store'
+import { audioContext, canPlayAudio } from './audio'
+import { music } from './music'
 
 /**
  * Interface sounds synthesized with Web Audio, so there are no audio files to load.
@@ -9,22 +11,20 @@ export type Sfx =
   | 'hover' | 'click' | 'back' | 'tab' | 'scan' | 'success' | 'fail'
   | 'star' | 'unlock' | 'place' | 'remove' | 'error' | 'land' | 'type'
 
-let ctx: AudioContext | null = null
 let master: GainNode | null = null
 let lastHover = 0
 
 function audio(): AudioContext | null {
-  if (typeof window === 'undefined') return null
-  if (!ctx) {
-    const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
-    if (!AC) return null
-    ctx = new AC()
-    master = ctx.createGain()
-    master.gain.value = 0.2
-    master.connect(ctx.destination)
+  if (!canPlayAudio()) return null
+  const c = audioContext()
+  if (!c) return null
+  if (!master) {
+    master = c.createGain()
+    master.gain.value = 0.3
+    master.connect(c.destination)
   }
-  if (ctx.state === 'suspended') ctx.resume().catch(() => {})
-  return ctx
+  if (c.state === 'suspended') c.resume().catch(() => {})
+  return c
 }
 
 function tone(c: AudioContext, freq: number, dur: number, { type = 'sine' as OscillatorType, gain = 0.2, at = 0, to = 0, attack = 0.005 } = {}) {
@@ -73,6 +73,8 @@ export function sfx(name: Sfx) {
   }
   const c = audio()
   if (!c || !master) return
+  if (name === 'success' || name === 'unlock') music.duck(2.4)
+  if (name === 'land') music.duck(2.8)
   switch (name) {
     case 'hover': tone(c, 2100, 0.035, { gain: 0.035 }); break
     case 'type': tone(c, 1500 + Math.random() * 300, 0.02, { type: 'square', gain: 0.012 }); break

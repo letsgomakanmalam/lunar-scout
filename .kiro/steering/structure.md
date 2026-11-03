@@ -9,8 +9,9 @@
 .vscode/               editor settings (hides unrelated Java tooling)
 scripts/qr.mjs         QR code for the live site
 src/
-  data/                types.ts, sources.ts, earthSites.ts, moon.ts (targets + missions), modules.ts, data.test.ts
-  lib/                 scoring.ts (+ test), base.ts (+ test), moonTexture.ts + globe.ts (+ test), textureCache.ts, sfx.ts, motion.ts, format.ts
+  data/                types.ts, sources.ts, earthSites.ts, moon.ts (targets + missions), modules.ts, tutorial.ts (guided tour), data.test.ts
+  tutorial.test.ts     guided tutorial logic
+  lib/                 scoring.ts (+ test), base.ts (+ test), moonTexture.ts + globe.ts (+ test), textureCache.ts, audio.ts, sfx.ts, music.ts, motion.ts, format.ts
   assets/fonts/        self-hosted fonts + licences
   components/          EarthMap, MoonGlobe, EarthGlobe, Starfield, Hud, AsiRadar, ScanFx, RewardOverlay, Modal, Tutorial, Icon, Counter
   screens/             Title, Missions, Explore, Land, Build, Journal, Dashboard, About

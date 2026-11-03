@@ -19,8 +19,9 @@ Missions → Analog Site Explorer (scan + certify) → research points → Landi
 5. Base Builder: 6×6 lunar grid; habitat, solar array, comms, lab, ice extractor, rover garage; upgrades; power balance.
 6. Research Journal: automatic entries for certifications and landing, plus player notes.
 7. Progress Dashboard: rank, stars, mission log, local leaderboard.
-8. Tutorial: 3-step first-run guide.
-9. About page: challenge, how scoring works, site codex, data sources.
+8. Tutorial: guided tour of the whole loop (scan, certify, land, build) that spotlights the real controls and advances on player actions; replayable from the title and About.
+9. About page: how to play, controls, challenge, how scoring works, site codex, data sources.
+10. Soundtrack: original generative music (busier on the title, calmer in game) plus UI sound effects, with separate on/off switches.
 
 ## Audience & tone
 Students, judges, space fans. Understandable in 60 seconds. Fun but honest: estimates are labelled as estimates.

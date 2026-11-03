@@ -6,7 +6,7 @@
 - **Earth map**: MapLibre GL JS with NASA GIBS Blue Marble raster tiles (free, no API key)
 - **Moon views**: canvas 2D renderer (`src/lib/globe.ts`) with a procedural texture (`src/lib/moonTexture.ts`); maria and named craters sit at their real positions (no WebGL needed)
 - **Fonts**: Michroma, Barlow, Barlow Condensed, self-hosted woff2 in `src/assets/fonts` (SIL OFL); no Google Fonts request
-- **Sound**: synthesized with Web Audio in `src/lib/sfx.ts` (no audio files); M toggles mute
+- **Sound and music**: effects and an original generative soundtrack synthesized with Web Audio (`src/lib/sfx.ts`, `src/lib/music.ts`, shared context in `src/lib/audio.ts`); M toggles effects, N toggles music
 - **State**: Zustand with `persist` (progress saved in the browser's localStorage)
 - **Charts**: Recharts radar chart
 - **Tests**: Vitest (`npm test`)
@@ -29,6 +29,6 @@
 - All scoring logic lives in `src/lib/scoring.ts`; base logic in `src/lib/base.ts`. Both are pure and tested.
 - Every factor value must cite a `sourceId` from `src/data/sources.ts`. Guesses keep `estimate: true`.
 - Use relative paths (`base: './'`) so the build works on GitHub Pages and any static host.
-- Keep it phone-friendly: test at 375px width.
+- Works on every screen: check at 320, 390 and 844x390 (phones), 768 and 1024 (tablets), 1366 and 1920 (laptop, desktop). Touch targets at least 44px; two-finger map panning on touch.
 - Accessibility: keyboard-playable, visible focus, reduced motion respected.
 - Windows users: use `start-dev.bat` and `check-all.bat`. Avoid bash-only commands in npm scripts.

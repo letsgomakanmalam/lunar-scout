@@ -1,9 +1,26 @@
 import { SOURCES } from '../data/sources'
 import { EARTH_SITES } from '../data/earthSites'
 import { useGame } from '../store'
+import Icon, { type IconName } from '../components/Icon'
+
+const LOOP: { icon: IconName; title: string; text: string }[] = [
+  { icon: 'rocket', title: 'Take a mission', text: 'Each mission names a place on the Moon and what matters there.' },
+  { icon: 'globe', title: 'Scan Earth', text: 'Scan real places with NASA data. Certify one that is Moon-like enough to earn research points.' },
+  { icon: 'flag', title: 'Land', text: 'Choose where on the Moon to land. Each site changes costs and perks.' },
+  { icon: 'grid', title: 'Build', text: 'Spend points on modules. Passing missions unlocks new ones.' },
+]
+
+const KEYS: [string, string][] = [
+  ['↑ ↓  Enter', 'Move through the main menu'],
+  ['Q  E', 'Previous and next tab'],
+  ['1 to 6', 'Pick a module on the Base screen'],
+  ['N', 'Music on or off'],
+  ['M', 'Sound effects on or off'],
+  ['Esc', 'Back to the main menu, or close a window'],
+]
 
 export default function About() {
-  const { go } = useGame()
+  const { go, startTutorial } = useGame()
   return (
     <div className="page narrow">
       <header className="screen-head">
@@ -13,6 +30,25 @@ export default function About() {
           terrestrial analogs for future lunar bases and landing sites using open NASA and partner-agency data.
         </p>
       </header>
+
+      <h2>How to play</h2>
+      <ol className="howto">
+        {LOOP.map((s, i) => (
+          <li key={s.title} className="cut">
+            <span className="howto-no" aria-hidden="true">{i + 1}</span>
+            <Icon name={s.icon} size={26} />
+            <strong>{s.title}</strong>
+            <p>{s.text}</p>
+          </li>
+        ))}
+      </ol>
+      <button className="btn primary cut" onClick={startTutorial}><Icon name="play" size={16} />Play the guided tutorial</button>
+
+      <h2>Controls</h2>
+      <p>Everything works by tapping or clicking. On a keyboard you can also use:</p>
+      <dl className="keys">
+        {KEYS.map(([k, d]) => <div key={k}><dt><kbd>{k}</kbd></dt><dd>{d}</dd></div>)}
+      </dl>
 
       <h2>How scoring works</h2>
       <p>
@@ -50,15 +86,15 @@ export default function About() {
         {SOURCES.map(s => <li key={s.id}><a href={s.url} target="_blank" rel="noreferrer">{s.name}</a> ({s.agency})</li>)}
       </ul>
 
-      <h2>Imagery, sound and fonts</h2>
+      <h2>Imagery, music and fonts</h2>
       <p>
         The Earth map uses NASA GIBS Blue Marble tiles. The Moon and Earth on the title screen are drawn live in your browser:
         the maria and named craters such as Tycho and Copernicus sit at their real positions, and the rest of the surface is
-        generated. They are illustrations, not survey data. Sounds are synthesized in the browser. Fonts: Michroma and Barlow,
-        under the SIL Open Font License.
+        generated. They are illustrations, not survey data. The music and sounds are original and synthesized in the browser.
+        Fonts: Michroma and Barlow, under the SIL Open Font License.
       </p>
 
-      <button className="btn primary cut" onClick={() => go('missions')}>Go to missions</button>
+      <button className="btn ghost cut" onClick={() => go('missions')}>Go to missions</button>
     </div>
   )
 }

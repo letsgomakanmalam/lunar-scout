@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { PROBES_PER_MISSION, useGame } from '../store'
 import EarthMap from '../components/EarthMap'
 import MoonGlobe from '../components/MoonGlobe'
@@ -13,7 +13,7 @@ import { sourceById } from '../data/sources'
 import { computeASI, strengthsAndWeaknesses } from '../lib/scoring'
 import { fmtCoords } from '../lib/format'
 import { sfx } from '../lib/sfx'
-import { prefersReducedMotion } from '../lib/motion'
+import { prefersReducedMotion, useMedia } from '../lib/motion'
 
 const STATUS_LABEL = { known: 'Known analog', candidate: 'New candidate', local: 'Malaysia' } as const
 const MARKERS = LUNAR_TARGETS.map(t => ({ id: t.id, lat: t.lat, lon: t.lon, label: t.name }))
@@ -30,13 +30,21 @@ export default function Explore() {
   const [scanning, setScanning] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [reward, setReward] = useState<CertifyResult | null>(null)
+  const compact = useMedia('(max-width: 899px)')
+  const scanPanel = useRef<HTMLElement>(null)
+  const { tutorialEvent, tutorialDone } = g
 
   useEffect(() => setMessage(null), [g.selectedSiteId, mission.id])
+  useEffect(() => { if (g.selectedSiteId) tutorialEvent('site') }, [g.selectedSiteId, tutorialEvent])
   useEffect(() => {
     if (!scanning) return
-    const t = setTimeout(() => setScanning(false), prefersReducedMotion() ? 0 : 1800)
+    const t = setTimeout(() => { setScanning(false); tutorialEvent('scanned') }, prefersReducedMotion() ? 0 : 1800)
     return () => clearTimeout(t)
-  }, [scanning])
+  }, [scanning, tutorialEvent])
+  // On phones the scan panel sits under the map: bring it up when a site is picked.
+  useEffect(() => {
+    if (site && compact && tutorialDone) scanPanel.current?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' })
+  }, [site?.id, compact, tutorialDone]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const doScan = () => {
     if (!site) return
@@ -49,7 +57,12 @@ export default function Explore() {
     setScanning(true)
   }
 
-  const doCertify = () => { if (site) setReward(g.certify(site.id)) }
+  const doCertify = () => {
+    if (!site) return
+    const r = g.certify(site.id)
+    setReward(r)
+    if (r.stars > 0) tutorialEvent('certified')
+  }
 
   const result = site && isScanned ? computeASI(site, target, mission) : null
   const sw = result ? strengthsAndWeaknesses(result) : null
@@ -62,20 +75,20 @@ export default function Explore() {
 
   return (
     <div className="explore">
-      <aside className="panel brief">
+      <aside className="panel brief" data-tut="brief">
         <header className="brief-head">
           <span className="mission-no" aria-label={`Mission ${missionNo}`}>{String(missionNo).padStart(2, '0')}</span>
           <h2>{mission.title}</h2>
         </header>
         <div className="target-view">
-          <MoonGlobe size={176} maxRes={320} target={target} markers={MARKERS} label={`The Moon, turned to ${target.name}`} />
+          <MoonGlobe size={compact ? 112 : 176} maxRes={320} target={target} markers={MARKERS} label={`The Moon, turned to ${target.name}`} />
           <p className="target-name">{target.name}</p>
           <p className="coords">{fmtCoords(target.lat, target.lon)}</p>
         </div>
         <p>{mission.brief}</p>
         <p className="tip"><Icon name="tip" size={18} /><span>Hint: {mission.equipmentTip}</span></p>
         <h3>What counts</h3>
-        <ul className="weights">
+        <ul className="weights" data-tut="weights">
           {Object.entries(mission.weights).map(([k, w]) => (
             <li key={k}>
               <span>{FACTOR_LABELS[k as FactorKey]}</span>
@@ -93,11 +106,11 @@ export default function Explore() {
         <button className="btn ghost cut small" onClick={() => g.go('missions')}>Change mission</button>
       </aside>
 
-      <section className="map-col">
+      <section className="map-col" data-tut="map">
         <EarthMap selectedId={g.selectedSiteId} scannedIds={scannedIds} onSelect={g.selectSite} />
       </section>
 
-      <aside className="panel scan">
+      <aside className="panel scan" ref={scanPanel}>
         {!site && (
           <div className="pick">
             <h2>Pick a site</h2>
@@ -120,7 +133,7 @@ export default function Explore() {
             <p>{site.description}</p>
 
             {!isScanned && (
-              <button className="btn primary cut wide" data-sfx="none" onClick={doScan} disabled={probesLeft <= 0}>
+              <button className="btn primary cut wide" data-sfx="none" data-tut="scan-button" onClick={doScan} disabled={probesLeft <= 0}>
                 <Icon name="scan" size={18} />Scan this site<span className="cost">uses 1 probe</span>
               </button>
             )}
@@ -128,7 +141,7 @@ export default function Explore() {
             {isScanned && scanning && <Scanner siteName={site.name} lines={scanLines} />}
 
             {isScanned && !scanning && result && (
-              <div className="result" aria-live="polite">
+              <div className="result" aria-live="polite" data-tut="result">
                 <div className="verdict">
                   <AsiGauge asi={result.asi ?? 0} pass={mission.passAsi} />
                   <div className="verdict-text">
@@ -162,7 +175,7 @@ export default function Explore() {
                     })}
                   </ul>
                 </details>
-                <button className="btn primary cut wide" data-sfx="none" onClick={doCertify}><Icon name="check" size={18} />Certify this site</button>
+                <button className="btn primary cut wide" data-sfx="none" data-tut="certify" onClick={doCertify}><Icon name="check" size={18} />Certify this site</button>
               </div>
             )}
             {message && <p className="message" role="status">{message}</p>}

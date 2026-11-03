@@ -12,7 +12,7 @@ import { prefersReducedMotion } from '../lib/motion'
 const PIPS = { Easy: 1, Medium: 2, Hard: 3 } as const
 
 export default function Land() {
-  const { completed, landingId, chooseLanding, go } = useGame()
+  const { completed, landingId, chooseLanding, go, tutorialEvent } = useGame()
   const ready = Object.keys(completed).length > 0
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [descent, setDescent] = useState<string | null>(null)
@@ -21,9 +21,9 @@ export default function Land() {
   useEffect(() => {
     if (!descent) return
     sfx('land')
-    const t = setTimeout(() => chooseLanding(descent), prefersReducedMotion() ? 0 : 2300)
+    const t = setTimeout(() => { chooseLanding(descent); tutorialEvent('landed') }, prefersReducedMotion() ? 0 : 2300)
     return () => clearTimeout(t)
-  }, [descent, chooseLanding])
+  }, [descent, chooseLanding, tutorialEvent])
 
   const choose = (id: string) => {
     if (landingId === id) return go('build')
@@ -45,7 +45,7 @@ export default function Land() {
           <button className="btn primary cut small" onClick={() => go('missions')}>Go to missions</button>
         </div>
       )}
-      <div className="landing-grid">
+      <div className="landing-grid" data-tut="landing">
         {LUNAR_TARGETS.filter(t => t.landable).map(t => {
           const l = t.landing!
           const chosen = landingId === t.id

@@ -33,6 +33,10 @@ const PATHS = {
   grid: <><rect x="3.5" y="3.5" width="17" height="17" rx="1" /><path d="M3.5 9.2h17M3.5 14.8h17M9.2 3.5v17M14.8 3.5v17" /></>,
   tip: <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z" />,
   signal: <><path d="M4.5 19.5a10.6 10.6 0 0 1 0-15M19.5 4.5a10.6 10.6 0 0 1 0 15M8 16a5.6 5.6 0 0 1 0-8M16 8a5.6 5.6 0 0 1 0 8" /><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" /></>,
+  music: <><path d="M9 18V5.5l11-2.5v12.5" /><circle cx="6.5" cy="18" r="2.5" /><circle cx="17.5" cy="15.5" r="2.5" /></>,
+  musicOff: <><path d="M9 18V5.5l11-2.5v12.5" /><circle cx="6.5" cy="18" r="2.5" /><circle cx="17.5" cy="15.5" r="2.5" /><path d="M3 3l18 18" /></>,
+  play: <path d="M8 5.5v13l10.5-6.5z" />,
+  keyboard: <><rect x="2.5" y="6" width="19" height="12" rx="2" /><path d="M6 10h.01M9.5 10h.01M13 10h.01M16.5 10h.01M7 14h10" /></>,
   medal: <><circle cx="12" cy="15" r="5.5" /><path d="M8.5 3l3.5 6.5L15.5 3M12 12.5l.9 1.8 2 .3-1.5 1.4.4 2-1.8-1-1.8 1 .4-2-1.5-1.4 2-.3z" /></>,
 } satisfies Record<string, ReactNode>
 

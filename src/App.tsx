@@ -12,6 +12,8 @@ import Tutorial from './components/Tutorial'
 import Hud, { type NavItem } from './components/Hud'
 import Starfield from './components/Starfield'
 import { sfx, type Sfx } from './lib/sfx'
+import { music } from './lib/music'
+import { canPlayAudio } from './lib/audio'
 
 const NAV: NavItem[] = [
   { id: 'missions', label: 'Missions', icon: 'rocket' },
@@ -65,7 +67,7 @@ function useInterfaceSounds() {
 }
 
 export default function App() {
-  const { screen, go, tutorialDone, toggleMuted } = useGame()
+  const { screen, go, tutorialDone, toggleMuted, toggleMusic, music: musicOn } = useGame()
 
   // Simple #hash routing so a screen can be bookmarked or shared.
   useEffect(() => {
@@ -85,6 +87,19 @@ export default function App() {
 
   useInterfaceSounds()
 
+  // Music: browsers need a first tap or key press, then it follows the Music setting.
+  useEffect(() => {
+    const start = () => { if (useGame.getState().music) music.play() }
+    window.addEventListener('pointerdown', start, { once: true })
+    window.addEventListener('keydown', start, { once: true })
+    return () => { window.removeEventListener('pointerdown', start); window.removeEventListener('keydown', start) }
+  }, [])
+  useEffect(() => {
+    if (!musicOn) music.pause()
+    else if (canPlayAudio()) music.play()
+  }, [musicOn])
+  useEffect(() => music.setMood(screen === 'title' ? 'title' : 'game'), [screen])
+
   // Game-style keys: Q / E switch tabs, M mutes, Esc returns to the main menu.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -93,6 +108,7 @@ export default function App() {
       if (document.querySelector('[aria-modal="true"]')) return
       const k = e.key.toLowerCase()
       if (k === 'm') { toggleMuted(); sfx('click'); return }
+      if (k === 'n') { toggleMusic(); sfx('click'); return }
       if (screen === 'title') return
       if (k === 'q' || k === 'e') {
         const i = NAV.findIndex(n => n.id === screen)
@@ -106,7 +122,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [screen, go, toggleMuted])
+  }, [screen, go, toggleMuted, toggleMusic])
 
   if (screen === 'title') return <Title />
 
@@ -125,7 +141,7 @@ export default function App() {
           {screen === 'about' && <About />}
         </div>
       </main>
-      {!tutorialDone && screen === 'explore' && <Tutorial />}
+      {!tutorialDone && <Tutorial />}
     </div>
   )
 }
