@@ -7,6 +7,11 @@ import { EARTH_SITES } from './data/earthSites'
 import { computeASI, starsFor } from './lib/scoring'
 import { emptyGrid, moduleCost, type BaseGrid } from './lib/base'
 import { TUTORIAL, type TutEvent } from './data/tutorial'
+import type { LatLon, Units } from './lib/geo'
+
+export type MapBase = 'live' | 'satellite' | 'map' | 'blue'
+export interface MapPrefs { base: MapBase; labels: boolean; dayNight: boolean; sky: boolean; units: Units }
+const DEFAULT_MAP: MapPrefs = { base: 'live', labels: true, dayNight: true, sky: true, units: 'km' }
 
 export type Screen = 'title' | 'explore' | 'land' | 'build' | 'missions' | 'journal' | 'dashboard' | 'about'
 
@@ -34,10 +39,16 @@ interface GameState {
   muted: boolean
   music: boolean
   tutorialFlags: TutEvent[]
+  mapPrefs: MapPrefs
+  /** From the browser's location service. Never saved. */
+  myLocation: LatLon | null
 
   go: (s: Screen) => void
   toggleMuted: () => void
   toggleMusic: () => void
+  setMapPrefs: (p: Partial<MapPrefs>) => void
+  setMyLocation: (p: LatLon | null) => void
+  newGame: () => void
   startTutorial: () => void
   nextTutorialStep: () => void
   tutorialEvent: (e: TutEvent) => void
@@ -75,6 +86,8 @@ const initial = {
   muted: false,
   music: true,
   tutorialFlags: [] as TutEvent[],
+  mapPrefs: DEFAULT_MAP,
+  myLocation: null as LatLon | null,
 }
 
 const now = () => new Date().toISOString()
@@ -97,6 +110,10 @@ export const useGame = create<GameState>()(
       go: screen => set({ screen }),
       toggleMuted: () => set({ muted: !get().muted }),
       toggleMusic: () => set({ music: !get().music }),
+      setMapPrefs: p => set({ mapPrefs: { ...DEFAULT_MAP, ...get().mapPrefs, ...p } }),
+      setMyLocation: myLocation => set({ myLocation }),
+      // Start over: progress is cleared, settings and the leaderboard stay, and the guided tutorial begins.
+      newGame: () => { get().resetAll(); get().startTutorial() },
 
       // Guided tutorial. Flags remember what the player has already done, so steps they
       // finished early are skipped; a returning player is never asked to move their base.
@@ -208,12 +225,12 @@ export const useGame = create<GameState>()(
         set({ leaderboard })
       },
 
-      resetAll: () => set({ ...initial, grid: emptyGrid(), leaderboard: get().leaderboard, tutorialDone: get().tutorialDone, muted: get().muted, music: get().music }),
+      resetAll: () => set({ ...initial, grid: emptyGrid(), leaderboard: get().leaderboard, tutorialDone: get().tutorialDone, muted: get().muted, music: get().music, mapPrefs: get().mapPrefs, myLocation: get().myLocation }),
     }),
     {
       name: 'lunar-scout-v1',
       partialize: s => {
-        const { screen: _screen, selectedSiteId: _sel, ...rest } = s
+        const { screen: _screen, selectedSiteId: _sel, myLocation: _me, ...rest } = s
         return rest
       },
     },

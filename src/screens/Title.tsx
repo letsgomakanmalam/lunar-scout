@@ -7,6 +7,7 @@ import Starfield from '../components/Starfield'
 import Icon from '../components/Icon'
 import type { Vec3 } from '../lib/globe'
 import { prefersReducedMotion } from '../lib/motion'
+import { ConfirmDialog } from '../components/Modal'
 
 // One sun for the whole scene, so Earth and Moon are lit from the same side.
 const SUN: Vec3 = [-0.86, 0.26, 0.44]
@@ -27,7 +28,8 @@ const METEORS = [
 ] as unknown as CSSProperties[]
 
 export default function Title() {
-  const { go, tutorialDone, completed, researchPoints, muted, toggleMuted, music, toggleMusic, startTutorial } = useGame()
+  const { go, tutorialDone, completed, researchPoints, muted, toggleMuted, music, toggleMusic, startTutorial, newGame } = useGame()
+  const [askNew, setAskNew] = useState(false)
   const returning = Object.keys(completed).length > 0
   const stars = totalStars(completed)
   const root = useRef<HTMLDivElement>(null)
@@ -204,6 +206,7 @@ export default function Title() {
             </span>
             <kbd className="mi-key" aria-hidden="true">Enter</kbd>
           </button>
+          {returning && <button className="menu-item" onClick={() => setAskNew(true)}><span className="mi-label">New game</span></button>}
           <button className="menu-item" onClick={() => go('missions')}><span className="mi-label">Missions</span></button>
           <button className="menu-item" onClick={startTutorial}><span className="mi-label">Tutorial</span></button>
           <button className="menu-item" onClick={() => go('about')}><span className="mi-label">How it works</span></button>
@@ -217,6 +220,16 @@ export default function Title() {
           </button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={askNew}
+        title="Start a new game?"
+        body="Your missions, research points, landing site, base and journal are cleared, and the guided tutorial starts again. The leaderboard and your settings stay."
+        confirmLabel="Start new game"
+        danger
+        onConfirm={() => { setAskNew(false); newGame() }}
+        onCancel={() => setAskNew(false)}
+      />
 
       <footer className="title-foot">
         <span>NASA Space Apps Challenge 2026, Kuala Lumpur</span>

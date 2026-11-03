@@ -88,7 +88,11 @@ export default function About() {
 
       <h2>Imagery, music and fonts</h2>
       <p>
-        The Earth map uses NASA GIBS Blue Marble tiles. The Moon and Earth on the title screen are drawn live in your browser:
+        The Earth map shows NASA's latest daily satellite picture of the whole planet (VIIRS on NOAA-20, through NASA GIBS),
+        Sentinel-2 cloudless imagery by EOX (contains modified Copernicus Sentinel data, free for non-commercial use), the
+        OpenFreeMap street map (OpenStreetMap data) and NASA's Blue Marble. Place search uses Photon by Komoot, which only
+        receives what you type. Your location stays on your device: it is used to show distances and is never saved or sent.
+        Day, night and the Sun and Moon positions are worked out in your browser every minute. The Moon and Earth on the title screen are drawn live in your browser:
         the maria and named craters such as Tycho and Copernicus sit at their real positions, and the rest of the surface is
         generated. They are illustrations, not survey data. The music and sounds are original and synthesized in the browser.
         Fonts: Michroma and Barlow, under the SIL Open Font License.

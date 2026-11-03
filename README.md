@@ -33,6 +33,14 @@ Every time you start the site (`start-dev.bat` or `npm run dev`), your changes a
 - Everything in this folder is saved except what `.gitignore` lists, so keep passwords and private files out of it.
 - If the tests fail on GitHub, the live site keeps the last working version.
 
+## Earth map
+The Explore Earth map works like Google Maps:
+- **Map types** (layers button): *Live Earth* (NASA's latest daily satellite picture, sharpening into Sentinel-2 detail as you zoom), *Satellite* (Sentinel-2, 10 m), *Map* (streets and places from OpenStreetMap) and *Blue Marble*.
+- **Search** any place, and use the **location** button to show where you are. Each search result shows how far it is from you and its nearest Moon analog.
+- **Measure** (ruler button): tap points on Earth to get distances along the curved Earth, in km or miles.
+- **Live**: the day and night shadow, and where the Sun and the Moon are directly overhead, update every minute.
+No API keys are needed. Search and map tiles need an internet connection; the game itself still works offline with imagery only.
+
 ## Tutorial
 New players get a guided tour: Mission Control highlights the real buttons and moves on when you do each step (scan, certify, land, build). Replay it from the title screen (**Tutorial**) or the About page. The steps live in `src/data/tutorial.ts`.
 

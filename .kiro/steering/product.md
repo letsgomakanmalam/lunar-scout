@@ -22,6 +22,8 @@ Missions → Analog Site Explorer (scan + certify) → research points → Landi
 8. Tutorial: guided tour of the whole loop (scan, certify, land, build) that spotlights the real controls and advances on player actions; replayable from the title and About.
 9. About page: how to play, controls, challenge, how scoring works, site codex, data sources.
 10. Soundtrack: original generative music (busier on the title, calmer in game) plus UI sound effects, with separate on/off switches.
+11. Earth map like Google Maps: Live Earth (NASA VIIRS daily), Sentinel-2 satellite, OpenFreeMap streets, Blue Marble; place search; my location; distance measuring along the curved Earth; live day and night with Sun and Moon overhead; distance from you to each site and the nearest analog to any place.
+12. New game from the main menu (keeps settings and the leaderboard).
 
 ## Audience & tone
 Students, judges, space fans. Understandable in 60 seconds. Fun but honest: estimates are labelled as estimates.
