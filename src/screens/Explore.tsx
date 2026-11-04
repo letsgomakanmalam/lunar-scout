@@ -12,6 +12,7 @@ import { FACTOR_LABELS, type FactorKey } from '../data/types'
 import { sourceById } from '../data/sources'
 import { computeASI, strengthsAndWeaknesses } from '../lib/scoring'
 import { fmtCoords } from '../lib/format'
+import { distanceKm, formatDistance } from '../lib/geo'
 import { sfx } from '../lib/sfx'
 import { prefersReducedMotion, useMedia } from '../lib/motion'
 
@@ -129,6 +130,7 @@ export default function Explore() {
               <span className={`chip st-${site.status}`}>{STATUS_LABEL[site.status]}</span>
               <h2>{site.name}</h2>
               <p className="coords">{site.country}, {fmtCoords(site.lat, site.lon)}</p>
+              {g.myLocation && <p className="coords from-you"><Icon name="target" size={13} />{formatDistance(distanceKm(g.myLocation, site), g.mapPrefs.units)} from you</p>}
             </div>
             <p>{site.description}</p>
 

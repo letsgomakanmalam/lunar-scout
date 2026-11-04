@@ -48,7 +48,7 @@ Each mission has 8 probes. Each scan of a new site uses one.
 AAA game presentation, grounded in Apollo hardware rather than generic sci-fi.
 - Colour has meaning: Apollo gold foil `#e9b24c` = player actions and rewards; Earth blue `#72b6ff` = Earth and data; regolith white `#ebe6da` = the Moon. Space black `#05070d`, glass panels `#0d1320`, pass `#5fe0a2`, fail `#ff6f5e`.
 - Type: Michroma (Eurostile-style, 1960s space-age) for the logo and screen titles, Barlow Condensed for HUD labels and numbers, Barlow for body text. Self-hosted in `src/assets/fonts` so the demo works offline.
-- Motifs: réseau crosses (the + marks on Apollo Hasselblad photos) frame imaging surfaces; chamfered corners mark things you can act on.
+- Motifs: four-point star glints frame imaging surfaces and twinkle in the sky, and shooting stars cross the title screen; chamfered corners mark things you can act on.
 - Signature moment: the title screen's live 3D Moon (real mare layout, crater relief) with the gold Earth-to-Moon trajectory.
 - Game feel: HUD with animated counters, Q/E tab switching, scan sequence, "Site certified" reward screen, touchdown sequence, synthesized UI sound (M to mute). Reduced motion is respected everywhere.
 
@@ -130,6 +130,9 @@ Routing uses plain `#hash` names so screens can be bookmarked.
 | `AsiRadar` | Site vs target chart | `result: ScanResult` |
 | `Tutorial` | Guided tour: spotlights the real control, advances on player actions | steps in `data/tutorial.ts`; store `tutorialEvent`, `nextTutorialStep`, `startTutorial` |
 | `music.ts` | Original generative soundtrack (Web Audio), moods for title and game, ducks under fanfares | `music.play()`, `pause()`, `setMood()`, `renderScore()` |
+| `EarthMap` | Google-style map: map types, search, location, measuring, live day/night, Sun and Moon overhead, site markers | `selectedId`, `scannedIds`, `onSelect`; prefs in store `mapPrefs` |
+| `MapSearch` | Place search box (Photon geocoder, debounced) | `onPick(place)` |
+| `geo.ts` / `sky.ts` | Great-circle distances and paths; Sun and Moon sub-points and night polygons | `distanceKm`, `greatCircle`, `nearest`, `skyAt`, `nightBands` |
 | `scoring.ts` | ASI and stars | `computeASI(site, target, mission)`, `starsFor(asi, pass, probes)`, `strengthsAndWeaknesses(result)` |
 | `base.ts` | Base rules | `moduleCost`, `modulePower`, `powerBalance`, `crewCapacity`, `isOperational`, `rankFor` |
 | `store.ts` | Game actions | `scan`, `certify`, `chooseLanding`, `place`, `upgrade`, `remove`, `addNote`, `saveScore`, `resetAll` |
@@ -184,6 +187,8 @@ Operational = at least one habitat, one comms tower and net power ≥ 0. Removin
 - Not enough research points or locked module: build is refused with the reason.
 - Map tiles fail to load: markers and the site list (dropdown) still work.
 - No WebGL on the device: the map shows a short message; the site list still works.
+- Street map style can't load (offline or blocked): the map switches to imagery only and the Map type is greyed out.
+- Search can't be reached: the box says so. Location blocked: a short message explains how to allow it.
 - Corrupt or old saved state: "Reset progress" on the Progress screen.
 
 ## Testing Strategy

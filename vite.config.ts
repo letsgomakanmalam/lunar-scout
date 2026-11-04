@@ -31,8 +31,5 @@ export default defineConfig({
     chunkSizeWarningLimit: 1100,
     rollupOptions: { output: { manualChunks: { maplibre: ['maplibre-gl'], charts: ['recharts'] } } },
   },
-  test: {
-    environment: 'node',
-    setupFiles: ['./src/test-setup.ts'],
-  },
+  test: { environment: 'node' },
 } as any)

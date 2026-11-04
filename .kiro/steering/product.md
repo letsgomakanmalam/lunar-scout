@@ -22,6 +22,8 @@ Missions → Analog Site Explorer (scan + certify) → research points → Landi
 8. Tutorial: guided tour of the whole loop (scan, certify, land, build) that spotlights the real controls and advances on player actions; replayable from the title and About.
 9. About page: how to play, controls, challenge, how scoring works, site codex, data sources.
 10. Soundtrack: original generative music (busier on the title, calmer in game) plus UI sound effects, with separate on/off switches.
+11. Earth map like Google Maps: Live Earth (NASA VIIRS daily), Sentinel-2 satellite, OpenFreeMap streets, Blue Marble; place search; my location; distance measuring along the curved Earth; live day and night with Sun and Moon overhead; distance from you to each site and the nearest analog to any place.
+12. New game from the main menu (keeps settings and the leaderboard).
 
 ## Audience & tone
 Students, judges, space fans. Understandable in 60 seconds. Fun but honest: estimates are labelled as estimates.
@@ -30,7 +32,7 @@ Students, judges, space fans. Understandable in 60 seconds. Fun but honest: esti
 AAA game presentation, grounded in Apollo hardware rather than generic sci-fi.
 - Colour has meaning: Apollo gold foil `#e9b24c` = player actions and rewards; Earth blue `#72b6ff` = Earth and data; regolith white `#ebe6da` = the Moon. Space black `#05070d`, glass panels `#0d1320`, pass `#5fe0a2`, fail `#ff6f5e`.
 - Type: Michroma (Eurostile-style, 1960s space-age) for the logo and screen titles, Barlow Condensed for HUD labels and numbers, Barlow for body text. Self-hosted in `src/assets/fonts` so the demo works offline.
-- Motifs: réseau crosses (the + marks on Apollo Hasselblad photos) frame imaging surfaces; chamfered corners mark things you can act on.
+- Motifs: four-point star glints frame imaging surfaces and twinkle in the sky, and shooting stars cross the title screen; chamfered corners mark things you can act on.
 - Signature moment: the title screen's live 3D Moon (real mare layout, crater relief) with the gold Earth-to-Moon trajectory.
 - Game feel: HUD with animated counters, Q/E tab switching, scan sequence, "Site certified" reward screen, touchdown sequence, synthesized UI sound (M to mute). Reduced motion is respected everywhere.
 

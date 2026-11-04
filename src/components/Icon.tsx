@@ -37,6 +37,10 @@ const PATHS = {
   musicOff: <><path d="M9 18V5.5l11-2.5v12.5" /><circle cx="6.5" cy="18" r="2.5" /><circle cx="17.5" cy="15.5" r="2.5" /><path d="M3 3l18 18" /></>,
   play: <path d="M8 5.5v13l10.5-6.5z" />,
   keyboard: <><rect x="2.5" y="6" width="19" height="12" rx="2" /><path d="M6 10h.01M9.5 10h.01M13 10h.01M16.5 10h.01M7 14h10" /></>,
+  search: <><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5L21 21" /></>,
+  layers: <><path d="M12 3l9 5-9 5-9-5z" /><path d="M3 13l9 5 9-5" /></>,
+  ruler: <><path d="M3.5 16.5l13-13 4 4-13 13z" /><path d="M7 13l1.8 1.8M9.8 10.2l1.2 1.2M12.6 7.4l1.8 1.8M15.4 4.6l1.2 1.2" /></>,
+  undo: <path d="M9 14L4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />,
   medal: <><circle cx="12" cy="15" r="5.5" /><path d="M8.5 3l3.5 6.5L15.5 3M12 12.5l.9 1.8 2 .3-1.5 1.4.4 2-1.8-1-1.8 1 .4-2-1.5-1.4 2-.3z" /></>,
 } satisfies Record<string, ReactNode>
 

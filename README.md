@@ -4,7 +4,7 @@ NASA Space Apps Challenge 2026, Kuala Lumpur. Theme: The Next Frontier.
 
 Explore real places on Earth that behave like the Moon, pick a lunar landing site based on what you learn, and build your Moon base by completing science missions. Every score is explained and cited.
 
-**Live site:** _add your GitHub Pages URL here_
+**Live site:** https://letsgomakanmalam.github.io/lunar-scout/ (updates automatically on every push to `main`)
 
 ## Run it on Windows (easiest)
 1. Install **Node.js LTS** from https://nodejs.org (version 20 or newer).
@@ -24,6 +24,22 @@ npm run check      # typecheck + tests + build
 - **Q / E:** previous / next tab. **Esc:** back to the main menu.
 - **1 to 6:** pick a module on the Base screen.
 - **N:** music on or off. **M:** sound effects on or off (both also in the top-right corner).
+
+## Auto-save to GitHub
+Every time you start the site (`start-dev.bat` or `npm run dev`), your changes are committed with the date and time and pushed to GitHub, and the live site updates about 2 to 3 minutes later. To save without starting the site, double-click `sync-github.bat` (or run `npm run sync`). To start without saving, run `npm run dev:nosave`.
+
+- The first time, GitHub asks you to sign in in a browser window. After that it remembers you.
+- Offline? The site still starts; your changes are pushed next time.
+- Everything in this folder is saved except what `.gitignore` lists, so keep passwords and private files out of it.
+- If the tests fail on GitHub, the live site keeps the last working version.
+
+## Earth map
+The Explore Earth map works like Google Maps:
+- **Map types** (layers button): *Live Earth* (NASA's latest daily satellite picture, sharpening into Sentinel-2 detail as you zoom), *Satellite* (Sentinel-2, 10 m), *Map* (streets and places from OpenStreetMap) and *Blue Marble*.
+- **Search** any place, and use the **location** button to show where you are. Each search result shows how far it is from you and its nearest Moon analog.
+- **Measure** (ruler button): tap points on Earth to get distances along the curved Earth, in km or miles.
+- **Live**: the day and night shadow, and where the Sun and the Moon are directly overhead, update every minute.
+No API keys are needed. Search and map tiles need an internet connection; the game itself still works offline with imagery only.
 
 ## Tutorial
 New players get a guided tour: Mission Control highlights the real buttons and moves on when you do each step (scan, certify, land, build). Replay it from the title screen (**Tutorial**) or the About page. The steps live in `src/data/tutorial.ts`.
