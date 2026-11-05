@@ -25,6 +25,20 @@ npm run check      # typecheck + tests + build
 - **1 to 6:** pick a module on the Base screen.
 - **N:** music on or off. **M:** sound effects on or off (both also in the top-right corner).
 
+## Building your base
+The Base screen is a 3D Moon base on a highland plateau. Drag to turn the view, scroll or pinch to zoom, and tap a plot to build.
+- **Energy** pays for buildings and refills over time, even while the game is closed. Solar arrays and landing pads refill it faster; battery banks store more.
+- **Score**: buildings score more next to good neighbours (a greenhouse farm next to a habitat, oxygen next to ice) and less next to bad ones (rocket dust from landing pads, radio noise near the telescope). The number over a plot shows what you would score. Each score target on the ring gives energy and research points.
+- **Quests** (the + button) give rewards. **Technology** needs quests done, then research points, and unlocks new buildings: greenhouse farm, battery bank, landing pad, oxygen plant, regolith printer and radio telescope. Missions still unlock the rover garage, science lab and ice extractor.
+- Number keys 1 to 9 pick a building; **2D plan** gives a flat, keyboard-friendly view.
+
+## Opening animation
+When the site opens, the camera zooms from the edge of the observable universe through the Milky Way and the Solar System to Earth and the Moon, then lands on the title screen. It is also the loading screen: the Moon's surface is generated meanwhile. Any key, click or tap skips it, and devices set to reduce motion skip it automatically. To freeze one moment for a screenshot or slide, open the site with `?intro-at=2.3` (seconds) at the end of the address.
+
+## Your 24/7 link
+Your site is online all the time at **https://letsgomakanmalam.github.io/lunar-scout/**, even when your computer is off.
+After every save, the window waits until GitHub has published the update, then shows the link with a QR code, copies it to your clipboard (paste it into WhatsApp or anywhere) and opens it in your browser. Double-click `live-link.bat` (or run `npm run live`) to get the link any time.
+
 ## Auto-save to GitHub
 Every time you start the site (`start-dev.bat` or `npm run dev`), your changes are committed with the date and time and pushed to GitHub, and the live site updates about 2 to 3 minutes later. To save without starting the site, double-click `sync-github.bat` (or run `npm run sync`). To start without saving, run `npm run dev:nosave`.
 

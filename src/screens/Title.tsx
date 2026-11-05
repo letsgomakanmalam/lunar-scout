@@ -8,6 +8,11 @@ import Icon from '../components/Icon'
 import type { Vec3 } from '../lib/globe'
 import { prefersReducedMotion } from '../lib/motion'
 import { ConfirmDialog } from '../components/Modal'
+import CosmicIntro from '../components/CosmicIntro'
+import { moonProgress } from '../lib/textureCache'
+
+// The opening zoom plays once per visit, not every time you come back to the menu.
+let introPlayed = false
 
 // One sun for the whole scene, so Earth and Moon are lit from the same side.
 const SUN: Vec3 = [-0.86, 0.26, 0.44]
@@ -41,6 +46,9 @@ export default function Title() {
   const [sizes, setSizes] = useState({ moon: 760, earth: 92 })
   const [route, setRoute] = useState<Route | null>(null)
   const [moonOn, setMoonOn] = useState(false)
+  const moonOnRef = useRef(false)
+  moonOnRef.current = moonOn
+  const [intro, setIntro] = useState(() => !introPlayed && !prefersReducedMotion())
   const [still, setStill] = useState(false)
   useEffect(() => setStill(prefersReducedMotion()), [])
 
@@ -69,7 +77,7 @@ export default function Title() {
       const ex = e.left - r.left + e.width / 2, ey = e.top - r.top + e.height / 2
       const mx = m.left - r.left + m.width / 2, my = m.top - r.top + m.height / 2
       const a = Math.atan2(my - ey, mx - ex)
-      const sx = ex + Math.cos(a) * e.width * 0.62, sy = ey + Math.sin(a) * e.width * 0.62
+      const sx = ex + Math.cos(a) * e.width * 0.74, sy = ey + Math.sin(a) * e.width * 0.74
       const tx = mx - m.width * 0.2, ty = my - m.height * 0.12
       const dist = Math.hypot(tx - sx, ty - sy)
       const cx = (sx + tx) / 2 + dist * 0.06, cy = Math.min(sy, ty) - dist * 0.28
@@ -103,11 +111,12 @@ export default function Title() {
 
   // Highlight the first menu item once the intro settles, so Enter starts the game.
   useEffect(() => {
+    if (intro) return
     const t = setTimeout(() => {
       if (document.activeElement === document.body) primary.current?.focus({ preventScroll: true })
-    }, prefersReducedMotion() ? 0 : 1500)
+    }, prefersReducedMotion() ? 0 : 1300)
     return () => clearTimeout(t)
-  }, [])
+  }, [intro])
 
   const onMenuKey = (e: KeyboardEvent) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
@@ -118,7 +127,7 @@ export default function Title() {
   }
 
   return (
-    <div className="title-screen" ref={root}>
+    <div className={`title-screen ${intro ? 'is-waiting' : ''}`} ref={root}>
       <div className="title-layer sky">
         <Starfield />
         <div className="shooting-stars" aria-hidden="true">{METEORS.map((m, i) => <span key={i} style={m} />)}</div>
@@ -136,6 +145,11 @@ export default function Title() {
                 <stop offset="0.5" stopColor="#e9b24c" />
                 <stop offset="1" stopColor="#ffd98c" />
               </linearGradient>
+              <radialGradient id="ls-flash">
+                <stop offset="0" stopColor="#ffffff" stopOpacity="1" />
+                <stop offset="0.35" stopColor="#cfe6ff" stopOpacity="0.7" />
+                <stop offset="1" stopColor="#72b6ff" stopOpacity="0" />
+              </radialGradient>
               <radialGradient id="ls-craft-glow">
                 <stop offset="0" stopColor="#fff6dd" stopOpacity="1" />
                 <stop offset="0.35" stopColor="#ffd98c" stopOpacity="0.55" />
@@ -161,9 +175,9 @@ export default function Title() {
               </g>
             )}
             {!still && (
-              <circle className="launch-flash" cx={route.sx} cy={route.sy} r="3">
-                <animate attributeName="r" values="3;20;20" keyTimes="0;0.14;1" dur={LOOP} repeatCount="indefinite" />
-                <animate attributeName="opacity" values="0.9;0;0" keyTimes="0;0.14;1" dur={LOOP} repeatCount="indefinite" />
+              <circle className="launch-flash" cx={route.sx} cy={route.sy} r="2">
+                <animate attributeName="r" values="2;15;15" keyTimes="0;0.1;1" dur={LOOP} repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.85;0;0" keyTimes="0;0.1;1" dur={LOOP} repeatCount="indefinite" />
               </circle>
             )}
 
@@ -221,6 +235,15 @@ export default function Title() {
         </div>
       </div>
 
+      {intro && (
+        <CosmicIntro
+          targets={() => ({ earth: earth.current?.getBoundingClientRect() ?? null, moon: moon.current?.querySelector('.globe')?.getBoundingClientRect() ?? null })}
+          ready={() => moonOnRef.current}
+          progress={moonProgress}
+          onDone={() => { introPlayed = true; setIntro(false) }}
+        />
+      )}
+
       <ConfirmDialog
         open={askNew}
         title="Start a new game?"
@@ -234,7 +257,7 @@ export default function Title() {
       <footer className="title-foot">
         <span>NASA Space Apps Challenge 2026, Kuala Lumpur</span>
         <span className="title-keys" aria-hidden="true"><kbd>↑</kbd><kbd>↓</kbd> choose <kbd>Enter</kbd> select <kbd>N</kbd> music <kbd>M</kbd> sound</span>
-        <span>v0.1.0</span>
+        <span>v{__APP_VERSION__}</span>
       </footer>
     </div>
   )

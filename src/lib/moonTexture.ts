@@ -467,7 +467,10 @@ const LAND: [number, number, number][] = [
   [-25, 134, 14], [-41, 174, 3], // Australia, NZ
 ]
 
-export function buildEarthTexture(w = 512, seed = 5): EarthTexture {
+export const buildEarthTexture = (w = 512, seed = 5): EarthTexture => runToEnd(earthTextureSteps(w, seed))
+
+/** Builds the Earth texture a few rows at a time (see runStepsAsync in globe.ts). */
+export function* earthTextureSteps(w = 512, seed = 5): Generator<number, EarthTexture> {
   const h = w >> 1
   const rgb = new Uint8Array(w * h * 3)
   const cloud = new Uint8Array(w * h)
@@ -478,6 +481,7 @@ export function buildEarthTexture(w = 512, seed = 5): EarthTexture {
     return { x: cl * Math.sin(lo * D2R), y: Math.sin(la * D2R), z: cl * Math.cos(lo * D2R), r: r * D2R }
   })
   for (let j = 0; j < h; j++) {
+    if (j % 12 === 11) yield j / h
     const latDeg = 90 - ((j + 0.5) * 180) / h
     const la = latDeg * D2R
     for (let i = 0; i < w; i++) {
@@ -507,7 +511,8 @@ export function buildEarthTexture(w = 512, seed = 5): EarthTexture {
       rgb[k * 3] = Math.min(255, r); rgb[k * 3 + 1] = Math.min(255, g); rgb[k * 3 + 2] = Math.min(255, b)
       const band = 0.18 * Math.exp(-((latDeg / 8) ** 2)) + 0.12 * Math.exp(-(((Math.abs(latDeg) - 52) / 12) ** 2))
       const cl = fbm(px * 5 + 9, py * 11 + 4, pz * 5 + 1, 5) + band
-      cloud[k] = Math.round(smoothstep(0.53, 0.8, cl) * 235)
+      const wisp = 0.55 + 0.45 * fbm(px * 22 + 3, py * 34 + 7, pz * 22 + 5, 2) // breaks clouds into streaks
+      cloud[k] = Math.round(smoothstep(0.5, 0.86, cl) * wisp * 225)
     }
   }
   return { w, h, rgb, cloud, ocean }

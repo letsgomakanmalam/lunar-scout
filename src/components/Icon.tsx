@@ -37,6 +37,15 @@ const PATHS = {
   musicOff: <><path d="M9 18V5.5l11-2.5v12.5" /><circle cx="6.5" cy="18" r="2.5" /><circle cx="17.5" cy="15.5" r="2.5" /><path d="M3 3l18 18" /></>,
   play: <path d="M8 5.5v13l10.5-6.5z" />,
   keyboard: <><rect x="2.5" y="6" width="19" height="12" rx="2" /><path d="M6 10h.01M9.5 10h.01M13 10h.01M16.5 10h.01M7 14h10" /></>,
+  farm: <><path d="M4 20h16" /><path d="M6 20a6 6 0 0 1 12 0" /><path d="M12 20v-6" /><path d="M12 14c0-2.5 2-4.5 4.5-4.5 0 2.5-2 4.5-4.5 4.5z" /><path d="M12 15.5c0-2-1.6-3.5-3.5-3.5 0 2 1.6 3.5 3.5 3.5z" /></>,
+  battery: <><rect x="3" y="7" width="16" height="10" rx="1.5" /><path d="M21 10.5v3" /><path d="M7 10v4M10.5 10v4M14 10v4" /></>,
+  pad: <><path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z" /><path d="M9 9v6M15 9v6M9 12h6" /></>,
+  oxygen: <><rect x="5" y="6" width="5.5" height="14" rx="2.75" /><rect x="13.5" y="9" width="5.5" height="11" rx="2.75" /><path d="M7.75 6V3.5M16.25 9V6.5" /></>,
+  printer: <><path d="M4 20V5h16v15" /><path d="M4 9h16" /><path d="M11 9v3" /><path d="M7.5 20a4.5 4.5 0 0 1 9 0" /></>,
+  telescope: <><path d="M5 9a9 9 0 0 0 10 10" /><path d="M5 9l10 10" /><path d="M10 14l5-5" /><circle cx="16" cy="8" r="1.6" /><path d="M9 21h8" /><path d="M12 17v4" /></>,
+  quest: <><path d="M7 3h10l2 3v15H5V6z" /><path d="M9 10l2 2 4-4" /><path d="M9 16h6" /></>,
+  tech: <><circle cx="12" cy="12" r="2" /><ellipse cx="12" cy="12" rx="9" ry="3.6" /><ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(60 12 12)" /><ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(120 12 12)" /></>,
+  plus: <path d="M12 5v14M5 12h14" />,
   search: <><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5L21 21" /></>,
   layers: <><path d="M12 3l9 5-9 5-9-5z" /><path d="M3 13l9 5 9-5" /></>,
   ruler: <><path d="M3.5 16.5l13-13 4 4-13 13z" /><path d="M7 13l1.8 1.8M9.8 10.2l1.2 1.2M12.6 7.4l1.8 1.8M15.4 4.6l1.2 1.2" /></>,
@@ -48,6 +57,7 @@ export type IconName = keyof typeof PATHS
 
 export const MODULE_ICON: Record<ModuleId, IconName> = {
   habitat: 'habitat', power: 'solar', comms: 'dish', lab: 'flask', ice: 'ice', rover: 'rover',
+  farm: 'farm', battery: 'battery', pad: 'pad', oxygen: 'oxygen', printer: 'printer', telescope: 'telescope',
 }
 
 export default function Icon({ name, size = 20, className, title }: { name: IconName; size?: number; className?: string; title?: string }) {

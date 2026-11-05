@@ -28,7 +28,7 @@ export default function EarthGlobe({ size, light, className }: { size: number; l
     const img = ctx.createImageData(res, res)
     const draw = (sec: number) => {
       // Starts over the Indian Ocean with Malaysia near the morning terminator.
-      renderEarth(prep, tex, 70 + sec * 6, 70 + sec * 7.2, img.data)
+      renderEarth(prep, tex, 70 + sec * 3.5, 70 + sec * 4.2, img.data)
       ctx.putImageData(img, 0, 0)
     }
     if (prefersReducedMotion()) { draw(0); return }

@@ -58,7 +58,7 @@ export interface LunarTarget {
   factors: Partial<Record<FactorKey, number>>
 }
 
-export type ModuleId = 'habitat' | 'power' | 'comms' | 'lab' | 'ice' | 'rover'
+export type ModuleId = 'habitat' | 'power' | 'comms' | 'farm' | 'battery' | 'pad' | 'lab' | 'ice' | 'rover' | 'oxygen' | 'printer' | 'telescope'
 
 export interface Mission {
   id: string

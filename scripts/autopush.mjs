@@ -6,10 +6,12 @@
  *   2. Pulls anything new from GitHub first, so the push isn't rejected.
  *   3. Pushes. GitHub Actions then tests the code and republishes the live site.
  *
+ *   4. Watches until GitHub has published it, then shows your 24/7 link (scripts/livelink.mjs).
+ *
  * It never stops the site from starting: if Git is missing, you're offline, or GitHub
  * needs you to sign in, it says so and carries on. Set LUNAR_AUTOPUSH=0 to switch it off.
  */
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, rmSync } from 'node:fs'
 
 const say = msg => console.log(`  [GitHub] ${msg}`)
@@ -91,9 +93,18 @@ function main() {
     }
   }
 
+  const site = pagesUrl(url ?? out(git(['remote', 'get-url', 'origin'])))
+  const ahead = git(['rev-list', '--count', `origin/${branch}..HEAD`])
+  if (ok(ahead) && out(ahead) === '0') {
+    return say(`Already up to date.${site ? ` Your 24/7 link: ${site}` : ''}`)
+  }
   if (ok(git(['push', '-q', '-u', 'origin', branch], { stdio: 'inherit', timeout: 300000 }))) {
-    const site = pagesUrl(url ?? out(git(['remote', 'get-url', 'origin'])))
-    say(`Pushed to GitHub.${site ? ` The live site updates in about 2 to 3 minutes: ${site}` : ''}`)
+    say(`Pushed to GitHub.${site ? ` Your 24/7 link: ${site}` : ''}`)
+    // Watch for the site to go live, then show, copy and open the link. When the site is
+    // starting (npm run dev) this runs alongside it; for sync-github.bat it runs to the end.
+    const watcher = spawn(process.execPath, ['scripts/livelink.mjs', '--wait', out(git(['rev-parse', 'HEAD']))], { stdio: 'inherit' })
+    watcher.on('error', () => {})
+    if (process.env.npm_lifecycle_event === 'predev') watcher.unref()
   } else {
     say('Could not push (offline, or GitHub needs you to sign in). Your changes are saved on this computer and will be pushed next time.')
   }

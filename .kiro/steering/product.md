@@ -24,6 +24,8 @@ Missions → Analog Site Explorer (scan + certify) → research points → Landi
 10. Soundtrack: original generative music (busier on the title, calmer in game) plus UI sound effects, with separate on/off switches.
 11. Earth map like Google Maps: Live Earth (NASA VIIRS daily), Sentinel-2 satellite, OpenFreeMap streets, Blue Marble; place search; my location; distance measuring along the curved Earth; live day and night with Sun and Moon overhead; distance from you to each site and the nearest analog to any place.
 12. New game from the main menu (keeps settings and the leaderboard).
+13. Opening zoom from the observable universe to Earth and the Moon, which doubles as the loading screen.
+14. 3D low-poly base builder: energy that refills over time, neighbour scoring with score targets, quests that unlock technology, and 12 buildings including a greenhouse farm.
 
 ## Audience & tone
 Students, judges, space fans. Understandable in 60 seconds. Fun but honest: estimates are labelled as estimates.

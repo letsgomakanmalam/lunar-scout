@@ -72,7 +72,7 @@ export function* prepareGlobeSteps(size: number, tiltDeg: number, light: Vec3, t
       ln[n] = nx * L[0] + ny * L[1] + nz * L[2]
       alpha[n] = a
       const rv = 2 * nl * z - L[2] // reflection of the sun toward the viewer
-      spec[n] = rv > 0 ? Math.pow(rv, 70) : 0
+      spec[n] = rv > 0 ? Math.pow(rv, 120) : 0
       n++
     }
   }
@@ -167,14 +167,15 @@ export function renderEarth(p: GlobePrep, tex: EarthTexture, viewLonDeg: number,
     const t = p.row[q] + c
     const tc = p.row[q] + cc
     const nl = p.base[q]
-    const day = nl > 0 ? nl : 0
-    const soft = Math.min(1, Math.max(0, nl * 3 + 0.25)) // gentle twilight band
+    const tw = Math.min(1, Math.max(0, (nl + 0.12) / 0.24)) // twilight band across the terminator
+    const day = (nl > 0 ? nl : 0) + tw * tw * 0.02
+    const soft = Math.min(1, Math.max(0, nl * 3 + 0.25))
     const cl = cloud[tc] * (1 / 255)
     let r = (rgb[t * 3] / 255) * day * 1.25
     let g = (rgb[t * 3 + 1] / 255) * day * 1.25
     let b = (rgb[t * 3 + 2] / 255) * day * 1.25
     if (ocean[t] && cl < 0.3) {
-      const s = p.spec[q] * 1.4 * (1 - cl)
+      const s = p.spec[q] * 0.5 * (1 - cl)
       r += s; g += s * 0.95; b += s * 0.85
     }
     const cw = day * 1.1
@@ -183,8 +184,8 @@ export function renderEarth(p: GlobePrep, tex: EarthTexture, viewLonDeg: number,
     b = b * (1 - cl) + cw * 1.02 * cl
     const mu = p.mu[q]
     const rim = Math.pow(1 - mu, 2.6) * soft
-    r += rim * 0.18; g += rim * 0.42; b += rim * 0.95
-    r += 0.006; g += 0.01; b += 0.02 // night side
+    r += rim * 0.1; g += rim * 0.26; b += rim * 0.62
+    r += 0.00012; g += 0.00018; b += 0.0004 // night side matches the colour of space behind it
     const o = p.pix[q] * 4
     out[o] = tone(r)
     out[o + 1] = tone(g)

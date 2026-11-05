@@ -6,3 +6,6 @@ qr-site.png
 .DS_Store
 # Java tooling that other extensions may drop into the workspace
 oracleJdk-*
+
+# Vite scratch files, left behind if the dev server is stopped mid-start
+vite.config.ts.timestamp-*

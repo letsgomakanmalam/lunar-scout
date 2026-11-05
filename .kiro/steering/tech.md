@@ -7,6 +7,9 @@
 - **Moon views**: canvas 2D renderer (`src/lib/globe.ts`) with a procedural texture (`src/lib/moonTexture.ts`); maria and named craters sit at their real positions (no WebGL needed)
 - **Auto-save**: `scripts/autopush.mjs` runs before `npm run dev` (and as `npm run sync`): commit all changes, pull with rebase, push. Never blocks startup; `npm run dev:nosave` skips it
 - **Map layers and search** (all keyless): OpenFreeMap Liberty style, NASA GIBS (VIIRS NOAA-20 true colour, Blue Marble), EOX Sentinel-2 cloudless 2024, Photon geocoder by Komoot. Sun/Moon/night maths in `src/lib/sky.ts`, distances in `src/lib/geo.ts`
+- **24/7 link**: `vite.config.ts` stamps each build with its commit (`<meta name="lunar-build">`); `scripts/livelink.mjs` waits until the live page shows the pushed commit, then shows, copies and opens the GitHub Pages link
+- **Opening zoom**: `src/components/CosmicIntro.tsx` (canvas: generated cosmic web, Milky Way, star dive, Solar System, Earth and Moon) with the timeline in `src/lib/cosmos.ts`; plays once per visit, doubles as the Moon-texture loading screen, lands on the title's own Earth and Moon
+- **3D base**: three.js 0.169 (`src/components/BaseScene.tsx`, loaded only on the Base screen); rules in `src/lib/base.ts` (energy, neighbour scoring, targets) and `src/data/quests.ts` (quests and technology)
 - **Fonts**: Michroma, Barlow, Barlow Condensed, self-hosted woff2 in `src/assets/fonts` (SIL OFL); no Google Fonts request
 - **Sound and music**: effects and an original generative soundtrack synthesized with Web Audio (`src/lib/sfx.ts`, `src/lib/music.ts`, shared context in `src/lib/audio.ts`); M toggles effects, N toggles music
 - **State**: Zustand with `persist` (progress saved in the browser's localStorage)

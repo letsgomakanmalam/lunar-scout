@@ -1,4 +1,5 @@
-import { buildEarthTexture, moonTextureSteps, type EarthTexture, type MoonTexture } from './moonTexture'
+import { earthTextureSteps, moonTextureSteps, type EarthTexture, type MoonTexture } from './moonTexture'
+import { runStepsAsync } from './globe'
 
 /**
  * Textures are built once per page load and shared by every globe on screen.
@@ -6,6 +7,7 @@ import { buildEarthTexture, moonTextureSteps, type EarthTexture, type MoonTextur
  * so the title intro keeps running smoothly while the surface is being made.
  */
 let moon: MoonTexture | null = null
+let moonDone = 0
 let moonJob: Promise<MoonTexture> | null = null
 let earth: EarthTexture | null = null
 let earthJob: Promise<EarthTexture> | null = null
@@ -17,6 +19,8 @@ const nextFrame = () =>
   })
 
 export const peekMoon = () => moon
+/** How far the Moon's surface is through being generated, 0 to 1. */
+export const moonProgress = () => (moon ? 1 : moonDone)
 
 export function loadMoon(): Promise<MoonTexture> {
   if (moon) return Promise.resolve(moon)
@@ -27,6 +31,7 @@ export function loadMoon(): Promise<MoonTexture> {
       for (;;) {
         const s = steps.next()
         if (s.done) return (moon = s.value)
+        moonDone = s.value
         if (performance.now() - start > 12) {
           await nextFrame()
           start = performance.now()
@@ -41,6 +46,6 @@ export const peekEarth = () => earth
 
 export function loadEarth(): Promise<EarthTexture> {
   if (earth) return Promise.resolve(earth)
-  if (!earthJob) earthJob = nextFrame().then(() => (earth = buildEarthTexture(256)))
+  if (!earthJob) earthJob = runStepsAsync(earthTextureSteps(512), () => false, 8).then(t => (earth = t!))
   return earthJob
 }

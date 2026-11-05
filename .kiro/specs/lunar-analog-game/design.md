@@ -132,6 +132,8 @@ Routing uses plain `#hash` names so screens can be bookmarked.
 | `music.ts` | Original generative soundtrack (Web Audio), moods for title and game, ducks under fanfares | `music.play()`, `pause()`, `setMood()`, `renderScore()` |
 | `EarthMap` | Google-style map: map types, search, location, measuring, live day/night, Sun and Moon overhead, site markers | `selectedId`, `scannedIds`, `onSelect`; prefs in store `mapPrefs` |
 | `MapSearch` | Place search box (Photon geocoder, debounced) | `onPick(place)` |
+| `BaseScene` | three.js low-poly base: terrain, 12 building models, hover preview, drop-in animation | `grid`, `selected`, `focus`, `preview(cell)`, `onCell`, `onFail` |
+| `quests.ts` | Quests (progress from the saved game) and the technology tree | `QUESTS`, `TECH`, `questDone()` |
 | `geo.ts` / `sky.ts` | Great-circle distances and paths; Sun and Moon sub-points and night polygons | `distanceKm`, `greatCircle`, `nearest`, `skyAt`, `nightBands` |
 | `scoring.ts` | ASI and stars | `computeASI(site, target, mission)`, `starsFor(asi, pass, probes)`, `strengthsAndWeaknesses(result)` |
 | `base.ts` | Base rules | `moduleCost`, `modulePower`, `powerBalance`, `crewCapacity`, `isOperational`, `rankFor` |

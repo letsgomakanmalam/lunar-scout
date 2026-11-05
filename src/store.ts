@@ -1,11 +1,12 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { ModuleId } from './data/types'
-import { MODULES } from './data/modules'
+import { MODULES, moduleById } from './data/modules'
 import { MISSIONS, missionById, targetById } from './data/moon'
 import { EARTH_SITES } from './data/earthSites'
 import { computeASI, starsFor } from './lib/scoring'
-import { emptyGrid, moduleCost, type BaseGrid } from './lib/base'
+import { baseScore, emptyGrid, ENERGY_BASE_CAP, energyCap, energyCost, energyRegenMs, GOAL_REWARD, goalsReached, moduleCost, settleEnergy, type BaseGrid } from './lib/base'
+import { QUESTS, questById, questDone, techFor, type QuestCtx } from './data/quests'
 import { TUTORIAL, type TutEvent } from './data/tutorial'
 import type { LatLon, Units } from './lib/geo'
 
@@ -21,6 +22,8 @@ export interface LeaderEntry { name: string; score: number; date: string }
 
 const PROBES_PER_MISSION = 8
 
+export interface BuildResult { ok: boolean; points?: number; goal?: number; reason?: 'no-landing' | 'taken' | 'locked' | 'energy' | 'rp'; need?: number }
+
 interface GameState {
   screen: Screen
   tutorialDone: boolean
@@ -34,12 +37,21 @@ interface GameState {
   unlocked: ModuleId[]
   landingId: string | null
   grid: BaseGrid
+  /** Energy to build with, as of energyAt (see settleEnergy) */
+  energy: number
+  energyAt: number
+  /** Quests whose reward has been claimed */
+  claimed: string[]
+  /** Base score targets reached so far */
+  goals: number
   journal: JournalEntry[]
   leaderboard: LeaderEntry[]
   muted: boolean
   music: boolean
   tutorialFlags: TutEvent[]
   mapPrefs: MapPrefs
+  /** How the 3D base looks: on the Moon, or a cosy teal sea */
+  baseTheme: 'moon' | 'cosy'
   /** From the browser's location service. Never saved. */
   myLocation: LatLon | null
 
@@ -47,6 +59,7 @@ interface GameState {
   toggleMuted: () => void
   toggleMusic: () => void
   setMapPrefs: (p: Partial<MapPrefs>) => void
+  setBaseTheme: (t: 'moon' | 'cosy') => void
   setMyLocation: (p: LatLon | null) => void
   newGame: () => void
   startTutorial: () => void
@@ -59,9 +72,13 @@ interface GameState {
   scan: (siteId: string) => 'ok' | 'no-probes' | 'already'
   certify: (siteId: string) => { stars: number; asi: number; reward: number; unlocked?: ModuleId }
   chooseLanding: (id: string) => void
-  place: (cell: number, id: ModuleId) => boolean
-  upgrade: (cell: number) => boolean
+  place: (cell: number, id: ModuleId) => BuildResult
+  upgrade: (cell: number) => BuildResult
   remove: (cell: number) => void
+  /** Adds the energy that has refilled since it was last saved */
+  settle: () => void
+  claimQuest: (id: string) => boolean
+  research: (id: ModuleId) => boolean
   addNote: (title: string, text: string) => void
   deleteNote: (id: string) => void
   saveScore: (name: string) => void
@@ -81,12 +98,17 @@ const initial = {
   unlocked: MODULES.filter(m => m.startsUnlocked).map(m => m.id),
   landingId: null,
   grid: emptyGrid(),
+  energy: ENERGY_BASE_CAP,
+  energyAt: 0,
+  claimed: [] as string[],
+  goals: 0,
   journal: [] as JournalEntry[],
   leaderboard: [] as LeaderEntry[],
   muted: false,
   music: true,
   tutorialFlags: [] as TutEvent[],
   mapPrefs: DEFAULT_MAP,
+  baseTheme: 'moon' as 'moon' | 'cosy',
   myLocation: null as LatLon | null,
 }
 
@@ -95,6 +117,26 @@ const uid = () => Math.random().toString(36).slice(2, 10)
 
 export const totalStars = (completed: Record<string, MissionRecord>) =>
   Object.values(completed).reduce((n, r) => n + r.stars, 0)
+
+/** What the quests look at, from the saved game. */
+export const questContext = (s: Pick<GameState, 'landingId' | 'grid' | 'scanned' | 'completed'>): QuestCtx => ({
+  landingId: s.landingId,
+  landing: s.landingId ? targetById(s.landingId) : undefined,
+  grid: s.grid,
+  scannedCount: new Set(Object.values(s.scanned).flat()).size,
+  missionsDone: Object.keys(s.completed),
+  stars: totalStars(s.completed),
+})
+
+/** Energy right now, including what has refilled since it was saved. */
+export const energyNow = (s: Pick<GameState, 'energy' | 'energyAt' | 'grid'>, now = Date.now()) =>
+  settleEnergy(s.energy, s.energyAt, now, energyCap(s.grid), energyRegenMs(s.grid))
+
+/** Quests finished but not yet claimed. */
+export const claimableQuests = (s: Pick<GameState, 'landingId' | 'grid' | 'scanned' | 'completed' | 'claimed'>) => {
+  const ctx = questContext(s)
+  return QUESTS.filter(q => !s.claimed.includes(q.id) && questDone(q, ctx))
+}
 
 export const missionUnlocked = (id: string, completed: Record<string, MissionRecord>) => {
   const idx = MISSIONS.findIndex(m => m.id === id)
@@ -110,6 +152,7 @@ export const useGame = create<GameState>()(
       go: screen => set({ screen }),
       toggleMuted: () => set({ muted: !get().muted }),
       toggleMusic: () => set({ music: !get().music }),
+      setBaseTheme: baseTheme => set({ baseTheme }),
       setMapPrefs: p => set({ mapPrefs: { ...DEFAULT_MAP, ...get().mapPrefs, ...p } }),
       setMyLocation: myLocation => set({ myLocation }),
       // Start over: progress is cleared, settings and the leaderboard stay, and the guided tutorial begins.
@@ -183,35 +226,83 @@ export const useGame = create<GameState>()(
 
       place: (cell, id) => {
         const s = get()
-        if (!s.landingId || s.grid[cell] || !s.unlocked.includes(id)) return false
-        const cost = moduleCost(id, targetById(s.landingId))
-        if (s.researchPoints < cost) return false
+        if (!s.landingId) return { ok: false, reason: 'no-landing' }
+        if (s.grid[cell]) return { ok: false, reason: 'taken' }
+        if (!s.unlocked.includes(id)) return { ok: false, reason: 'locked' }
+        const cost = energyCost(id, targetById(s.landingId))
+        const e = energyNow(s)
+        if (e.energy < cost) return { ok: false, reason: 'energy', need: cost }
         const grid = [...s.grid]
         grid[cell] = { id, level: 1 }
-        set({ grid, researchPoints: s.researchPoints - cost })
-        return true
+        const before = baseScore(s.grid), after = baseScore(grid)
+        const reached = goalsReached(after), fresh = Math.max(0, reached - s.goals)
+        set({
+          grid,
+          energy: e.energy - cost + fresh * GOAL_REWARD.energy,
+          energyAt: e.next === null ? Date.now() : e.at, // a full battery starts refilling from now
+          goals: Math.max(s.goals, reached),
+          researchPoints: s.researchPoints + fresh * GOAL_REWARD.rp,
+        })
+        return { ok: true, points: after - before, goal: fresh ? reached : undefined }
       },
 
       upgrade: cell => {
         const s = get()
         const m = s.grid[cell]
-        if (!m || m.level === 2 || !s.landingId) return false
+        if (!m || m.level === 2 || !s.landingId) return { ok: false }
         const cost = moduleCost(m.id, targetById(s.landingId), true)
-        if (s.researchPoints < cost) return false
+        if (s.researchPoints < cost) return { ok: false, reason: 'rp', need: cost }
         const grid = [...s.grid]
         grid[cell] = { ...m, level: 2 }
-        set({ grid, researchPoints: s.researchPoints - cost })
-        return true
+        const before = baseScore(s.grid), after = baseScore(grid)
+        const reached = goalsReached(after), fresh = Math.max(0, reached - s.goals)
+        const e = energyNow(s)
+        set({
+          grid,
+          researchPoints: s.researchPoints - cost + fresh * GOAL_REWARD.rp,
+          goals: Math.max(s.goals, reached),
+          energy: e.energy + fresh * GOAL_REWARD.energy,
+          energyAt: e.at,
+        })
+        return { ok: true, points: after - before, goal: fresh ? reached : undefined }
       },
 
       remove: cell => {
         const s = get()
         const m = s.grid[cell]
         if (!m || !s.landingId) return
-        const refund = Math.floor(moduleCost(m.id, targetById(s.landingId)) / 2)
+        const e = energyNow(s)
         const grid = [...s.grid]
         grid[cell] = null
-        set({ grid, researchPoints: s.researchPoints + refund })
+        set({ grid, energy: e.energy + Math.floor(energyCost(m.id, targetById(s.landingId)) / 2), energyAt: e.at })
+      },
+
+      settle: () => {
+        const s = get()
+        const e = energyNow(s)
+        if (e.energy !== s.energy) set({ energy: e.energy, energyAt: e.at })
+      },
+
+      claimQuest: id => {
+        const s = get()
+        const q = questById(id)
+        if (!q || s.claimed.includes(id) || !questDone(q, questContext(s))) return false
+        const e = energyNow(s)
+        set({ claimed: [...s.claimed, id], researchPoints: s.researchPoints + (q.reward.rp ?? 0), energy: e.energy + (q.reward.energy ?? 0), energyAt: e.at })
+        return true
+      },
+
+      research: id => {
+        const s = get()
+        const t = techFor(id)
+        if (!t || s.unlocked.includes(id) || !t.requires.every(q => s.claimed.includes(q)) || s.researchPoints < t.rp) return false
+        const m = moduleById(id)
+        set({
+          unlocked: [...s.unlocked, id],
+          researchPoints: s.researchPoints - t.rp,
+          journal: [{ id: uid(), date: now(), auto: true, title: `Technology unlocked: ${m.name}`, text: m.description }, ...s.journal],
+        })
+        return true
       },
 
       addNote: (title, text) => set({ journal: [{ id: uid(), date: now(), title, text, auto: false }, ...get().journal] }),
@@ -225,7 +316,7 @@ export const useGame = create<GameState>()(
         set({ leaderboard })
       },
 
-      resetAll: () => set({ ...initial, grid: emptyGrid(), leaderboard: get().leaderboard, tutorialDone: get().tutorialDone, muted: get().muted, music: get().music, mapPrefs: get().mapPrefs, myLocation: get().myLocation }),
+      resetAll: () => set({ ...initial, grid: emptyGrid(), leaderboard: get().leaderboard, tutorialDone: get().tutorialDone, muted: get().muted, music: get().music, mapPrefs: get().mapPrefs, baseTheme: get().baseTheme, myLocation: get().myLocation }),
     }),
     {
       name: 'lunar-scout-v1',

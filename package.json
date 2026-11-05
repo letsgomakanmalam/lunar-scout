@@ -1,7 +1,7 @@
 {
   "name": "lunar-scout",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.6.0",
   "type": "module",
   "description": "LUNAR SCOUT: Earth Analog Hunt - NASA Space Apps Challenge 2026, Kuala Lumpur",
   "engines": {
@@ -19,19 +19,22 @@
     "typecheck": "tsc --noEmit",
     "qr": "node scripts/qr.mjs",
     "check": "npm run typecheck && npm test && npm run build",
-    "sync": "node scripts/autopush.mjs"
+    "sync": "node scripts/autopush.mjs",
+    "live": "node scripts/livelink.mjs"
   },
   "dependencies": {
     "maplibre-gl": "^4.7.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "recharts": "^2.13.3",
+    "three": "0.169.0",
     "zustand": "^4.5.5"
   },
   "devDependencies": {
     "@types/qrcode": "^1.5.5",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
+    "@types/three": "0.169.0",
     "@vitejs/plugin-react": "^4.3.3",
     "qrcode": "^1.5.4",
     "qrcode-terminal": "^0.12.0",

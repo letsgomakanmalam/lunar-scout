@@ -12,9 +12,10 @@ src/
   data/                types.ts, sources.ts, earthSites.ts, moon.ts (targets + missions), modules.ts, tutorial.ts (guided tour), data.test.ts
   tutorial.test.ts     guided tutorial logic
   scripts/autopush.mjs auto-save to GitHub on every start (predev) and via sync-github.bat
+  scripts/livelink.mjs 24/7 link: waits for the live site, then shows, copies and opens it (live-link.bat)
   lib/                 scoring.ts (+ test), base.ts (+ test), moonTexture.ts + globe.ts (+ test), textureCache.ts, audio.ts, sfx.ts, music.ts, motion.ts, format.ts
   assets/fonts/        self-hosted fonts + licences
-  components/          EarthMap, MoonGlobe, EarthGlobe, Starfield, Hud, AsiRadar, ScanFx, RewardOverlay, Modal, Tutorial, Icon, Counter
+  components/          BaseScene (3D base), CosmicIntro (opening zoom), EarthMap, MoonGlobe, EarthGlobe, Starfield, Hud, AsiRadar, ScanFx, RewardOverlay, Modal, Tutorial, Icon, Counter
   screens/             Title, Missions, Explore, Land, Build, Journal, Dashboard, About
   store.ts             Zustand game state
   App.tsx, main.tsx, styles.css
