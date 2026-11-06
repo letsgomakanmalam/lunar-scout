@@ -9,7 +9,7 @@
 .vscode/               editor settings (hides unrelated Java tooling)
 scripts/qr.mjs         QR code for the live site
 src/
-  data/                types.ts, sources.ts, earthSites.ts, moon.ts (targets + missions), modules.ts, tutorial.ts (guided tour), data.test.ts
+  data/                types.ts, sources.ts, earthSites.ts, targets.ts + missions.ts (targets + missions), modules.ts, tutorial.ts (guided tour), data.test.ts
   tutorial.test.ts     guided tutorial logic
   scripts/autopush.mjs auto-save to GitHub on every start (predev) and via sync-github.bat
   scripts/livelink.mjs 24/7 link: waits for the live site, then shows, copies and opens it (live-link.bat)

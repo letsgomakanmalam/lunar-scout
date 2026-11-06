@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { totalStars, useGame, type Screen } from '../store'
-import { MISSIONS } from '../data/moon'
+import { MISSIONS } from '../data/missions'
+import { APP_NAME } from '../brand'
 import { rankFor } from '../lib/base'
 import Icon, { type IconName } from './Icon'
 import Counter from './Counter'
@@ -36,9 +37,9 @@ export default function Hud({ nav }: { nav: NavItem[] }) {
 
   return (
     <header className="hud">
-      <button className="hud-brand" onClick={() => go('title')} data-sfx="back" aria-label="Lunar Scout: back to main menu">
+      <button className="hud-brand" onClick={() => go('title')} data-sfx="back" aria-label={`${APP_NAME}: back to main menu`}>
         <span className="brand-mark" aria-hidden="true"><span className="brand-moon" /></span>
-        <span className="brand-word">Lunar Scout</span>
+        <span className="brand-word">{APP_NAME}</span>
       </button>
 
       <nav className="hud-tabs" aria-label="Main">

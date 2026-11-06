@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MoonTexture } from '../lib/moonTexture'
-import { loadMoon, peekMoon } from '../lib/textureCache'
-import { prepareGlobeSteps, projectToView, renderMoon, runSteps, runStepsAsync, type Vec3 } from '../lib/globe'
+import type { MarsTexture } from '../lib/marsTexture'
+import type { World } from '../data/types'
+import { loadMars, loadMoon, peekMars, peekMoon } from '../lib/textureCache'
+import { prepareGlobeSteps, projectToView, renderMars, renderMoon, runSteps, runStepsAsync, type Vec3 } from '../lib/globe'
 import { isLowPower, pixelRatio, prefersReducedMotion } from '../lib/motion'
 
 export interface GlobeMarker {
@@ -31,6 +33,15 @@ interface Props {
   maxRes?: number
   /** Called once the surface is drawn for the first time */
   onReady?: () => void
+  /** Which world to draw (default: the Moon) */
+  world?: World
+}
+
+type Surface = { world: 'moon'; tex: MoonTexture } | { world: 'mars'; tex: MarsTexture }
+const peek = (w: World): Surface | null => {
+  if (w === 'mars') { const t = peekMars(); return t ? { world: 'mars', tex: t } : null }
+  const t = peekMoon()
+  return t ? { world: 'moon', tex: t } : null
 }
 
 const DEFAULT_LIGHT: Vec3 = [-0.86, 0.24, 0.45]
@@ -38,26 +49,29 @@ const ease = (t: number) => 1 - Math.pow(1 - t, 3)
 const clampTilt = (lat: number) => Math.max(-55, Math.min(55, lat))
 
 /**
- * A lit, rotating Moon drawn into a canvas. Maria and named craters sit at their real
- * positions (see lib/moonTexture.ts), so target markers land on the right terrain.
+ * A lit, rotating Moon or Mars drawn into a canvas. Maria, craters, volcanoes and basins sit at
+ * their real positions (see lib/moonTexture.ts and lib/marsTexture.ts), so target markers land on
+ * the right terrain.
  */
 export default function MoonGlobe({
   size, label, className, spin = 0, tilt = 0, lon = 0, light = DEFAULT_LIGHT,
-  target = null, markers, maxRes = 720, onReady,
+  target = null, markers, maxRes = 720, onReady, world = 'moon',
 }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null)
-  const [tex, setTex] = useState<MoonTexture | null>(() => peekMoon())
+  const [surface, setSurface] = useState<Surface | null>(() => peek(world))
   const [lock, setLock] = useState<{ lon: number; tilt: number } | null>(null)
   const lastLon = useRef<number | null>(null)
   const readyRef = useRef(onReady)
   readyRef.current = onReady
+  const tex = surface && surface.world === world ? surface : null
 
   useEffect(() => {
     if (tex) return
     let alive = true
-    loadMoon().then(t => alive && setTex(t))
+    if (world === 'mars') loadMars().then(t => alive && setSurface({ world: 'mars', tex: t }))
+    else loadMoon().then(t => alive && setSurface({ world: 'moon', tex: t }))
     return () => { alive = false }
-  }, [tex])
+  }, [tex, world])
 
   const tLat = target?.lat
   const tLon = target?.lon
@@ -76,14 +90,15 @@ export default function MoonGlobe({
     setLock(null)
 
     const start = async () => {
-      const steps = prepareGlobeSteps(res, viewTilt, [lx, ly, lz], tex.w, tex.h)
+      const steps = prepareGlobeSteps(res, viewTilt, [lx, ly, lz], tex.tex.w, tex.tex.h)
       const prep = res <= 360 ? runSteps(steps) : await runStepsAsync(steps, () => cancelled)
       if (!prep || cancelled) return
       if (el.width !== res) { el.width = res; el.height = res }
       const img = ctx.createImageData(res, res)
       let first = true
       const draw = (viewLon: number) => {
-        renderMoon(prep, tex, viewLon, img.data)
+        if (tex.world === 'mars') renderMars(prep, tex.tex, viewLon, img.data)
+        else renderMoon(prep, tex.tex, viewLon, img.data)
         ctx.putImageData(img, 0, 0)
         lastLon.current = viewLon
         if (first) { first = false; readyRef.current?.() }
@@ -133,7 +148,7 @@ export default function MoonGlobe({
   const targetPos = lock && tLat != null && tLon != null ? projectToView(tLat, tLon, lock.lon, lock.tilt) : null
 
   return (
-    <div className={`globe ${className ?? ''} ${tex ? 'is-ready' : 'is-loading'}`} style={{ width: size, height: size }} role="img" aria-label={label}>
+    <div className={`globe globe-${world} ${className ?? ''} ${tex ? 'is-ready' : 'is-loading'}`} style={{ width: size, height: size }} role="img" aria-label={label}>
       <canvas ref={canvas} className="globe-canvas" width={2} height={2} />
       {lock && markers?.map(m => {
         if (m.lat === tLat && m.lon === tLon) return null

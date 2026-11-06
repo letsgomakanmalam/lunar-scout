@@ -214,3 +214,14 @@ The core game loop is already running: missions, scanner with ASI, certification
   ]
 }
 ```
+
+## Moon + Mars update (November 2026)
+- [x] Mars as a first-class world (was P2): 7 Mars targets, 6 Mars missions, Mars globe, Mars landing sites and base look
+- [x] Moon targets re-focused on the permanent base: NASA Moon Base ridge, Artemis III regions, lava-tube pit
+- [x] Discovery mode (was P1): live probe of any point, new-analog-candidate rule (Req 7.2)
+- [x] Debrief report export (Req 6.3/6.4): Analog Passport (Markdown, JSON) and twin reports
+- [x] New factors: anorthosite, ground ice, water-laid rock and salts, low polar Sun (computed), bare ground
+- [x] Twin finder with campaign planner and reality gaps; south-pole light calendar
+- [x] Script for real values (Task 8): `npm run measure` writes src/data/measured.json
+- [ ] Run `npm run measure` online and review the changes; review new site estimates and descriptions
+- [ ] Try live probes on the venue network; prepare a cached demo in case the Wi-Fi is down

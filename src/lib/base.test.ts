@@ -1,16 +1,31 @@
 import { describe, expect, it } from 'vitest'
 import { crewCapacity, emptyGrid, isOperational, moduleCost, powerBalance, rankFor } from './base'
-import { targetById } from '../data/moon'
+import { targetById } from '../data/targets'
+import { moduleById } from '../data/modules'
 
 describe('base rules', () => {
-  const easy = targetById('taurus-littrow')
+  const easy = targetById('mons-mouton')
   const pole = targetById('shackleton')
   const pit = targetById('marius-hills')
+  const massif = targetById('malapert')
+  const arcadia = targetById('arcadia')
+  const jezero = targetById('jezero')
 
-  it('applies landing cost multipliers and the polar ice discount', () => {
+  it('applies landing cost multipliers and per-building discounts', () => {
     expect(moduleCost('habitat', easy)).toBe(60)
     expect(moduleCost('habitat', pole)).toBe(75)
     expect(moduleCost('ice', pole)).toBe(Math.round(90 * 1.25 * 0.7))
+    expect(moduleCost('comms', massif)).toBe(Math.round(moduleById('comms').cost * 1.1 * 0.7))
+    expect(moduleCost('ice', arcadia)).toBe(Math.round(90 * 1.3 * 0.6))
+    expect(moduleCost('oxygen', arcadia)).toBe(Math.round(moduleById('oxygen').cost * 1.3 * 0.7))
+    expect(moduleCost('lab', jezero)).toBe(Math.round(moduleById('lab').cost * 1.4 * 0.7))
+    expect(moduleCost('habitat', arcadia)).toBe(Math.round(60 * 1.3))
+  })
+
+  it('every landable site has landing rules and the Moon and Mars both offer some', () => {
+    for (const t of [easy, pole, pit, massif, arcadia, jezero]) expect(t.landable && t.landing).toBeTruthy()
+    expect(arcadia.world).toBe('mars')
+    expect(arcadia.landing!.powerBonus).toBeLessThan(0) // weaker sunlight on Mars
   })
 
   it('computes power, crew and operational status', () => {
@@ -19,16 +34,18 @@ describe('base rules', () => {
     g[1] = { id: 'comms', level: 1 }
     expect(isOperational(g, easy)).toBe(false) // -3 power
     g[2] = { id: 'power', level: 1 }
-    expect(powerBalance(g, easy).net).toBe(1)
+    expect(powerBalance(g, easy).net).toBe(2) // +1 sun on the plateau
     expect(isOperational(g, easy)).toBe(true)
-    expect(powerBalance(g, pole).net).toBe(4) // +3 sun bonus
-    expect(powerBalance(g, pit).net).toBe(2) // habitat sheltered
+    expect(powerBalance(g, pole).net).toBe(4) // +3 sun bonus on the ridge
+    expect(powerBalance(g, pit).net).toBe(2) // habitat sheltered in the lava tube
+    expect(powerBalance(g, arcadia).net).toBe(0) // weaker sunlight on Mars
     expect(crewCapacity(g)).toBe(2)
   })
 
   it('ranks by stars', () => {
     expect(rankFor(0)).toBe('Cadet')
-    expect(rankFor(14)).toBe('Chief selenologist')
+    expect(rankFor(14)).toBe('Planetary geologist')
+    expect(rankFor(24)).toBe('Chief analog scientist')
   })
 })
 
@@ -52,7 +69,7 @@ describe('energy', () => {
     expect(energyRegenMs(g)).toBeLessThan(slow)
   })
   it('costs more energy at harder landing sites', () => {
-    expect(energyCost('habitat', targetById('taurus-littrow'))).toBe(4)
+    expect(energyCost('habitat', targetById('mons-mouton'))).toBe(4)
     expect(energyCost('habitat', targetById('shackleton'))).toBe(5)
   })
 })

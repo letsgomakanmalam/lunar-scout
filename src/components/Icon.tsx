@@ -51,6 +51,11 @@ const PATHS = {
   ruler: <><path d="M3.5 16.5l13-13 4 4-13 13z" /><path d="M7 13l1.8 1.8M9.8 10.2l1.2 1.2M12.6 7.4l1.8 1.8M15.4 4.6l1.2 1.2" /></>,
   undo: <path d="M9 14L4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />,
   medal: <><circle cx="12" cy="15" r="5.5" /><path d="M8.5 3l3.5 6.5L15.5 3M12 12.5l.9 1.8 2 .3-1.5 1.4.4 2-1.8-1-1.8 1 .4-2-1.5-1.4 2-.3z" /></>,
+  mars: <><circle cx="12" cy="12" r="8.5" /><path d="M4.5 9.5c3 1.2 5.5.2 8-.8s5-1.6 7.2-.4M4 14.3c2.6-.7 4.4.4 6.6 1.2 2.3.8 5 .7 9.2-1.4" /><circle cx="9" cy="6.6" r=".8" fill="currentColor" stroke="none" /></>,
+  twins: <><circle cx="7" cy="12" r="4.5" /><circle cx="17" cy="12" r="4.5" /><path d="M11.5 12h1M4.5 9.5c1.5.8 3.5.8 5 0M14.5 14.5c1.5-.8 3.5-.8 5 0" /></>,
+  download: <path d="M12 3.5v11.5M7 10.5l5 5 5-5M4.5 20h15" />,
+  sun: <><path d="M3 18h18" /><path d="M7.5 18a4.5 4.5 0 0 1 9 0" /><path d="M12 9.5v2M5.6 12.4l1.4 1.4M18.4 12.4L17 13.8M3.5 21h17" /></>,
+  pin: <><path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11z" /><circle cx="12" cy="10" r="2.3" /></>,
 } satisfies Record<string, ReactNode>
 
 export type IconName = keyof typeof PATHS

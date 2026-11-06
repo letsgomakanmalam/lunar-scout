@@ -990,3 +990,159 @@ label { display: grid; gap: .35rem; font: 600 .8rem var(--head); letter-spacing:
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ===================================================================
+   MOON + MARS: tracks, Mars accents, live probe, light calendar,
+   Twin finder and reports. Rust = Mars. Teal = your live discoveries.
+   =================================================================== */
+:root { --mars: #e07a4f; --mars-hi: #ffb38f; --discovery: #4fe3d0; }
+
+/* World chips and status for discoveries */
+.chip.world-moon { color: var(--regolith); }
+.chip.world-mars { color: var(--mars-hi); border-color: rgba(224, 122, 79, .6); }
+.chip.st-discovery { color: var(--discovery); }
+.dot.discovery { background: var(--discovery); }
+.st-text.st-known { color: var(--regolith); } .st-text.st-candidate { color: var(--foil); } .st-text.st-local { color: var(--malay); } .st-text.st-discovery { color: var(--discovery); }
+.codex li.st-discovery { border-top-color: var(--discovery); }
+.target-name .chip { margin-right: .45rem; vertical-align: 2px; font-size: .68rem; }
+.new-analog { margin-left: .35rem; color: var(--foil-hi); border-color: var(--foil); box-shadow: 0 0 12px rgba(233, 178, 76, .35); }
+
+/* Missions: two campaign tracks and judge mode */
+.judge-toggle { display: flex; align-items: flex-start; gap: .6rem; margin: -.6rem 0 1.4rem; padding: .6rem .8rem; border: 1px dashed var(--line-2); background: rgba(13, 19, 32, .6); color: var(--dust); font-size: .92rem; cursor: pointer; }
+.judge-toggle input { width: 18px; height: 18px; margin-top: .15rem; accent-color: var(--foil); }
+.judge-toggle strong { color: var(--regolith); }
+.track + .track, .land-group + .land-group { margin-top: 2.6rem; }
+.track-head { display: flex; align-items: center; gap: .55rem; margin: 0 0 .25rem; font-size: 1.45rem; }
+.track-head .icon { color: var(--foil); }
+.track-mars .track-head .icon, .land-group:nth-of-type(2) .track-head .icon { color: var(--mars); }
+.track-lede { max-width: 70ch; margin-bottom: 1rem; }
+.track-mars .mission-card.current { --edge: rgba(224, 122, 79, .8); --fill: linear-gradient(90deg, rgba(224, 122, 79, .14), rgba(12, 18, 30, .9) 50%); }
+.track-mars .campaign::before { background: linear-gradient(180deg, var(--mars), rgba(224, 122, 79, .1)); }
+
+/* Explore: brief actions, probe tool, discovery card, live check, reports */
+.brief-actions, .report-row, .pc-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.report-row { margin: 1rem 0 .6rem; }
+.pc-actions { margin-top: .6rem; }
+.discover-card { --cut: 12px; --fill: linear-gradient(160deg, rgba(79, 227, 208, .1), rgba(13, 19, 32, .9) 60%); --edge: rgba(79, 227, 208, .45); margin-top: 1.4rem; padding: .9rem 1rem 1rem; }
+.discover-card h3 { margin-top: 0 !important; color: var(--discovery) !important; }
+.discover-card h3::before { filter: hue-rotate(120deg) drop-shadow(0 0 4px rgba(79, 227, 208, .7)) !important; }
+.discover-card p { font-size: .93rem; }
+.probe-live h2 { font-size: 1.5rem; }
+.probe-steps { display: grid; gap: .35rem; margin: .8rem 0 1rem; padding: 0; list-style: none; }
+.probe-steps li { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: .55rem; padding: .45rem .6rem; border: 1px solid var(--line); background: rgba(13, 19, 32, .7); font: 600 .92rem var(--head); letter-spacing: .04em; }
+.probe-steps .ps-src { color: var(--dust); font-weight: 500; font-size: .8rem; }
+.probe-steps .ps-ok { border-color: rgba(95, 224, 162, .45); } .probe-steps .ps-ok .ps-icon { color: var(--good); }
+.probe-steps .ps-fail { border-color: rgba(255, 111, 94, .4); } .probe-steps .ps-fail .ps-icon { color: var(--bad); }
+.ps-spin { display: block; width: 14px; height: 14px; border: 2px solid rgba(79, 227, 208, .25); border-top-color: var(--discovery); border-radius: 50%; animation: ps-spin .8s linear infinite; }
+@keyframes ps-spin { to { transform: rotate(360deg); } }
+.probe-ping { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--discovery); box-shadow: 0 0 14px rgba(79, 227, 208, .8); pointer-events: none; }
+.probe-ping::after { content: ''; position: absolute; inset: -2px; border-radius: 50%; border: 2px solid var(--discovery); animation: ping 1.4s ease-out infinite; }
+@keyframes ping { from { transform: scale(1); opacity: .9; } to { transform: scale(3.2); opacity: 0; } }
+.probe-toast { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; border-left-color: var(--discovery); bottom: auto; top: 4.4rem; }
+.probe-toast .icon { color: var(--discovery); }
+.live-check { margin-top: 1rem; }
+.live-table { width: 100%; border-collapse: collapse; margin: .6rem 0; font-size: .88rem; }
+.live-table th, .live-table td { padding: .35rem .4rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.live-table thead th { color: var(--dust); font: 600 .76rem var(--head); letter-spacing: .14em; text-transform: uppercase; }
+.live-table td small { display: block; color: var(--dust); font-size: .78rem; }
+.sources li strong { color: var(--regolith); }
+
+/* South-pole light calendar */
+.light-cal { margin: .6rem 0 1rem; }
+.light-cal svg { display: block; width: 100%; height: 22px; }
+.lcal-bg { fill: rgba(255, 255, 255, .05); }
+.lcal-broad { fill: rgba(114, 182, 255, .55); }
+.lcal-tight { fill: var(--foil); }
+.lcal-tick { stroke: rgba(5, 7, 13, .9); stroke-width: .6; }
+.lcal-months { display: grid; grid-template-columns: repeat(12, 1fr); margin-top: .2rem; color: var(--dim); font: 600 .68rem var(--head); letter-spacing: .08em; text-transform: uppercase; }
+.light-cal figcaption { margin-top: .45rem; color: var(--dust); font-size: .88rem; line-height: 1.5; }
+.light-cal figcaption strong { color: var(--regolith); font-weight: 600; }
+.lcal-key { display: inline-block; width: 10px; height: 10px; margin-right: .4rem; vertical-align: -1px; }
+.lcal-key.broad { background: rgba(114, 182, 255, .7); } .lcal-key.tight { background: var(--foil); }
+.light-block h3 { margin-top: 1rem !important; }
+
+/* Twin finder */
+.world-tabs { display: flex; gap: .5rem; margin-bottom: .9rem; }
+.world-tab { --cut: 9px; --fill: rgba(19, 27, 43, .5); display: inline-flex; align-items: center; gap: .45rem; min-height: 42px; padding: .45rem 1.1rem; border: 0; background: none; color: var(--dust); font: 700 1rem var(--head); letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
+.world-tab.on { --edge: var(--foil); --fill: rgba(233, 178, 76, .12); color: var(--regolith); }
+.world-tab.on .icon { color: var(--foil); }
+.target-strip { display: flex; gap: .5rem; overflow-x: auto; padding-bottom: .5rem; margin-bottom: 1.2rem; scrollbar-width: thin; }
+.target-pill { --cut: 10px; --fill: rgba(13, 19, 32, .85); flex: none; display: grid; gap: .1rem; max-width: 250px; padding: .55rem .8rem; border: 0; background: none; text-align: left; cursor: pointer; }
+.target-pill strong { font: 700 1rem var(--head); color: var(--regolith); }
+.target-pill small { color: var(--dust); font-size: .78rem; line-height: 1.3; }
+.target-pill:hover { --edge: rgba(233, 178, 76, .5); }
+.target-pill.on { --edge: var(--foil); --fill: linear-gradient(180deg, rgba(233, 178, 76, .16), rgba(13, 19, 32, .9)); }
+.twin-grid { display: grid; grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); gap: 1rem; align-items: start; margin-bottom: 1rem; }
+.twins .panel { --cut: 14px; --fill: var(--glass); background: none; }
+.twin-target .tt-globe { display: flex; justify-content: center; margin: .2rem 0 .8rem; }
+.twin-target h2 { margin: .5rem 0 0; font-size: 1.5rem; }
+.facts { margin: .6rem 0 0; padding-left: 1.1rem; color: var(--dust); font-size: .92rem; }
+.facts li { margin-bottom: .3rem; }
+.src-chips { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: 1rem; }
+.src-chips .chip { text-decoration: none; font-size: .68rem; letter-spacing: .05em; text-transform: none; }
+.src-chips .chip:hover { border-color: var(--foil); color: #fff; }
+.twin-list h2, .campaign-plan h2, .twins section.panel > h2 { font-size: 1.4rem; }
+.twin-rows { display: grid; gap: .4rem; margin: .8rem 0 0; padding: 0; list-style: none; }
+.twin-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) minmax(130px, 210px); gap: .7rem; align-items: center; padding: .55rem .65rem; border: 1px solid var(--line); background: rgba(13, 19, 32, .72); }
+.twin-row:first-child { border-color: rgba(233, 178, 76, .5); background: linear-gradient(90deg, rgba(233, 178, 76, .1), rgba(13, 19, 32, .75) 55%); }
+.tr-rank { color: var(--foil); font: 700 1.2rem var(--display); text-align: center; }
+.tr-name { display: grid; min-width: 0; }
+.tr-name .pc-link { text-align: left; font: 700 1.02rem var(--head); color: var(--regolith); text-decoration-color: rgba(233, 178, 76, .6); }
+.tr-name small { color: var(--dust); font-size: .8rem; }
+.tr-score { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .1rem .55rem; }
+.tr-score strong { font: 700 1.25rem var(--head); }
+.tr-score small { grid-column: 1 / -1; color: var(--dim); font-size: .72rem; }
+.campaign-plan { margin-bottom: 1rem; }
+.plan-sites { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: .6rem; margin: .8rem 0 1rem; padding: 0; list-style: none; counter-reset: plan; }
+.plan-sites li { --cut: 12px; --fill: rgba(13, 19, 32, .9); --edge: rgba(114, 182, 255, .4); display: grid; gap: .2rem; padding: .8rem .9rem; counter-increment: plan; }
+.plan-sites li::after { content: counter(plan); position: absolute; top: .55rem; right: .8rem; color: var(--earth); font: 700 1.3rem var(--display); opacity: .55; }
+.plan-sites .pc-link { text-align: left; padding-right: 1.6rem; font: 700 1.05rem var(--head); }
+.plan-sites small { color: var(--dust); }
+.plan-sites span { color: var(--dust); font-size: .88rem; }
+.weights.cover li { grid-template-columns: minmax(0, 1fr) 140px; }
+.weights.cover small { color: var(--dim); }
+.weights.cover .bar > span { background: linear-gradient(90deg, #3d77b8, var(--earth)); box-shadow: 0 0 8px rgba(114, 182, 255, .5); }
+.table-scroll { overflow-x: auto; }
+.gap-table { width: 100%; min-width: 620px; border-collapse: collapse; font-size: .9rem; }
+.gap-table th, .gap-table td { padding: .55rem .6rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.gap-table thead th { color: var(--dust); font: 600 .76rem var(--head); letter-spacing: .14em; text-transform: uppercase; }
+.gap-table tbody th { color: var(--foil); font: 700 .98rem var(--head); white-space: nowrap; }
+.gap-table td:last-child { color: var(--dust); }
+.twins .report-row { margin-top: 1.2rem; }
+
+/* About: challenge answers and factor definitions */
+.answers { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: .7rem; margin: 0 0 1.2rem; padding: 0; list-style: none; }
+.answers li { --cut: 12px; --fill: rgba(13, 19, 32, .88); display: grid; align-content: start; gap: .35rem; padding: 1rem; }
+.answers li .icon { color: var(--foil); }
+.answers li strong { font: 700 1.05rem var(--head); }
+.answers li p { margin: 0; color: var(--dust); font-size: .92rem; }
+.factor-defs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: .1rem 1.4rem; margin: 1rem 0; }
+.factor-defs div { padding: .45rem 0; border-bottom: 1px solid var(--line); }
+.factor-defs dt { font: 700 .98rem var(--head); }
+.factor-defs dd { margin: .15rem 0 0; color: var(--dust); font-size: .9rem; }
+.sub-h { margin: 1.4rem 0 .5rem; color: var(--dust); font: 600 .9rem var(--head); letter-spacing: .16em; text-transform: uppercase; }
+
+/* Title: a distant Mars, and the Mars base look */
+.title-mars { position: absolute; top: 4%; left: 64%; opacity: .92; animation: fade-in 1.6s 1.1s ease-out both; filter: drop-shadow(0 0 10px rgba(224, 122, 79, .35)); }
+.base-screen.theme-mars { background: #c99470; }
+
+@media (max-width: 899px) {
+  .twin-grid { grid-template-columns: 1fr; }
+  .twin-row { grid-template-columns: 24px minmax(0, 1fr); }
+  .tr-score { grid-column: 2; }
+}
+@media (orientation: portrait) {
+  .title-mars { top: 3%; left: 12%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ps-spin, .probe-ping::after { animation: none; }
+}
+
+/* Eight tabs: tighten the bar on laptop widths before it falls back to icons only */
+@media (max-width: 1600px) {
+  .hud { gap: .7rem; }
+  .hud-res { gap: .7rem; }
+  .tab { gap: .35rem; padding: .6rem .5rem; font-size: .9rem; letter-spacing: .05em; }
+  .tab-key { display: none; }
+}
+@media (max-width: 1520px) { .brand-word { display: none; } }

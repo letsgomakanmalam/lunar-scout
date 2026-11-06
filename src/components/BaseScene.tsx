@@ -18,17 +18,25 @@ export interface SceneProps {
   onFail: () => void
 }
 
-/** Two looks for the base: on the Moon (default) or a cosy teal "sea" (the Moon's plains are called maria, seas). */
+/**
+ * Looks for the base: on the Moon (default), a cosy teal "sea" (the Moon's plains are called maria,
+ * seas), or on Mars, with rust-red ground under a butterscotch sky and no Earth overhead.
+ */
 const THEMES = {
   moon: {
     bg: '#060913', fog: '#0a0f1c', fogNear: 60, fogFar: 200, near: '#bec1c8', far: '#6c717b', shoal: null as string | null, waves: false, craters: true,
     top: '#ddd7cb', cliffs: ['#8d93a0', '#7a808d', '#686e7b'], isleTop: '#cfc9bd', spires: ['#a3a9b5', '#858c99'], ice: true, rock: '#8f939c',
-    stars: true, sun: '#ffffff', sunI: 2.7, sky: '#bcd0ff', ground: '#6b6864', hemiI: 0.7, amb: 0.14, exposure: 1.0, deck: '#c7b394', plank: '#a38f72',
+    stars: true, earth: true, sun: '#ffffff', sunI: 2.7, sky: '#bcd0ff', ground: '#6b6864', hemiI: 0.7, amb: 0.14, exposure: 1.0, deck: '#c7b394', plank: '#a38f72',
   },
   cosy: {
     bg: '#86cfcf', fog: '#7ccbcb', fogNear: 55, fogFar: 175, near: '#62c6c6', far: '#2b8a95', shoal: '#9be6dc' as string | null, waves: true, craters: false,
     top: '#ecc993', cliffs: ['#557487', '#486678', '#3d5869'], isleTop: '#dc9a5e', spires: ['#e27d3e', '#c9652f'], ice: false, rock: '#5f7a8b',
-    stars: false, sun: '#fff4dc', sunI: 2.3, sky: '#e3fbfa', ground: '#d9a86f', hemiI: 1.0, amb: 0.25, exposure: 1.1, deck: '#c48d57', plank: '#9b6838',
+    stars: false, earth: true, sun: '#fff4dc', sunI: 2.3, sky: '#e3fbfa', ground: '#d9a86f', hemiI: 1.0, amb: 0.25, exposure: 1.1, deck: '#c48d57', plank: '#9b6838',
+  },
+  mars: {
+    bg: '#c99470', fog: '#c08a66', fogNear: 50, fogFar: 175, near: '#b5683f', far: '#86492d', shoal: null as string | null, waves: false, craters: true,
+    top: '#c98a5f', cliffs: ['#9a5638', '#894c31', '#77422b'], isleTop: '#b9774f', spires: ['#a65d3c', '#8d4e32'], ice: true, rock: '#7c4530',
+    stars: false, earth: false, sun: '#fff0dc', sunI: 2.2, sky: '#f2caa6', ground: '#8a4a2e', hemiI: 0.85, amb: 0.2, exposure: 1.0, deck: '#c7b394', plank: '#a38f72',
   },
 }
 export type BaseTheme = keyof typeof THEMES
@@ -459,8 +467,8 @@ export default function BaseScene(props: SceneProps) {
         : new THREE.MeshStandardMaterial({ color: '#7fb0ee', roughness: 0.7, emissive: '#3a6fb8', emissiveIntensity: 0.3, transparent: true, opacity: 0.85, fog: false }),
     )
     earth.position.set(-125, 48, -175)
-    scene.add(earth)
-    if (T.stars) {
+    if (T.earth) scene.add(earth)
+    if (T.stars && T.earth) {
       const c = document.createElement('canvas')
       c.width = c.height = 128
       const x = c.getContext('2d')!

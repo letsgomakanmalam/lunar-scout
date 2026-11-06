@@ -1,9 +1,9 @@
 {
   "name": "lunar-scout",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.7.0",
   "type": "module",
-  "description": "LUNAR SCOUT: Earth Analog Hunt - NASA Space Apps Challenge 2026, Kuala Lumpur",
+  "description": "Analog Scout: find and characterize Earth analogs for NASA's Moon Base at the lunar south pole and for Mars, with live NASA and ESA data. NASA Space Apps 2026, Kuala Lumpur.",
   "engines": {
     "node": ">=20"
   },
@@ -20,7 +20,8 @@
     "qr": "node scripts/qr.mjs",
     "check": "npm run typecheck && npm test && npm run build",
     "sync": "node scripts/autopush.mjs",
-    "live": "node scripts/livelink.mjs"
+    "live": "node scripts/livelink.mjs",
+    "measure": "vite-node scripts/measure-sites.ts"
   },
   "dependencies": {
     "maplibre-gl": "^4.7.1",

@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useGame, type Screen } from './store'
 import Title from './screens/Title'
 import Explore from './screens/Explore'
+import Twins from './screens/Twins'
 import Land from './screens/Land'
 import Build from './screens/Build'
 import Missions from './screens/Missions'
@@ -18,6 +19,7 @@ import { canPlayAudio } from './lib/audio'
 const NAV: NavItem[] = [
   { id: 'missions', label: 'Missions', icon: 'rocket' },
   { id: 'explore', label: 'Explore Earth', icon: 'globe' },
+  { id: 'twins', label: 'Twin finder', icon: 'twins' },
   { id: 'land', label: 'Landing site', icon: 'flag' },
   { id: 'build', label: 'Base', icon: 'grid' },
   { id: 'journal', label: 'Journal', icon: 'book' },
@@ -133,6 +135,7 @@ export default function App() {
       <main className="main">
         <div className="screen" key={screen}>
           {screen === 'explore' && <Explore />}
+          {screen === 'twins' && <Twins />}
           {screen === 'land' && <Land />}
           {screen === 'build' && <Build />}
           {screen === 'missions' && <Missions />}

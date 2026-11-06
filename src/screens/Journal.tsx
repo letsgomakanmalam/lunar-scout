@@ -19,7 +19,7 @@ export default function Journal() {
         <p className="lede">Certifications and landing choices are logged here automatically. Add your own observations too.</p>
       </header>
       <div className="note-form cut">
-        <label>Title<input value={title} onChange={e => setTitle(e.target.value)} placeholder="Why Lonar looks like the lunar maria" /></label>
+        <label>Title<input value={title} onChange={e => setTitle(e.target.value)} placeholder="Why Kamestastin rehearses the lunar highlands" /></label>
         <label>Note<textarea value={text} onChange={e => setText(e.target.value)} rows={4} /></label>
         <button className="btn primary cut" onClick={save}><Icon name="book" size={18} />Save note</button>
       </div>

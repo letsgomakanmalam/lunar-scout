@@ -1,4 +1,5 @@
 import { GRAD_Q, type EarthTexture, type MoonTexture } from './moonTexture'
+import type { MarsTexture } from './marsTexture'
 
 const D2R = Math.PI / 180
 
@@ -149,6 +150,32 @@ export function renderMoon(p: GlobePrep, tex: MoonTexture, viewLonDeg: number, o
     out[o] = tone(v + e * 0.55)
     out[o + 1] = tone(v * 0.975 + e * 0.72)
     out[o + 2] = tone(v * 0.935 + e * 1.0)
+    out[o + 3] = p.alpha[q] * 255
+  }
+}
+
+/** Writes RGBA pixels of Mars: coloured surface, bump lighting and a thin dusty haze at the limb. */
+export function renderMars(p: GlobePrep, tex: MarsTexture, viewLonDeg: number, out: Uint8ClampedArray, look: MoonLook = DEFAULT_LOOK) {
+  const w = tex.w
+  const off = (((viewLonDeg / 360) * w) % w + w) % w
+  const { rgb, gx, gy } = tex
+  const k = (look.bump * 0.8) / GRAD_Q
+  const ex = look.exposure * 1.08
+  for (let q = 0; q < p.count; q++) {
+    let c = (p.col[q] + off) | 0
+    if (c >= w) c -= w
+    const t = p.row[q] + c
+    const mu = p.mu[q]
+    const fade = mu < 0.4 ? mu * 2.5 : 1
+    const mu0 = p.base[q] - k * fade * (gx[t] * p.le[q] + gy[t] * p.ln[q])
+    let lit = 0
+    if (mu0 > 0) lit = 0.35 * ((2 * mu0) / (mu0 + mu + 0.1)) + 0.65 * mu0
+    const day = Math.min(1, Math.max(0, p.base[q] * 3 + 0.3))
+    const haze = Math.pow(1 - mu, 3) * day * 0.55 // dust in the thin air glows at the edge of the day side
+    const o = p.pix[q] * 4
+    out[o] = tone((rgb[t * 3] / 255) * lit * ex + haze * 0.62)
+    out[o + 1] = tone((rgb[t * 3 + 1] / 255) * lit * ex + haze * 0.36)
+    out[o + 2] = tone((rgb[t * 3 + 2] / 255) * lit * ex + haze * 0.26)
     out[o + 3] = p.alpha[q] * 255
   }
 }

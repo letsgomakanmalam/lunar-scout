@@ -3,6 +3,7 @@ import { totalStars, useGame } from '../store'
 import { rankFor } from '../lib/base'
 import MoonGlobe from '../components/MoonGlobe'
 import EarthGlobe from '../components/EarthGlobe'
+import { APP_NAME } from '../brand'
 import Starfield from '../components/Starfield'
 import Icon from '../components/Icon'
 import type { Vec3 } from '../lib/globe'
@@ -134,6 +135,7 @@ export default function Title() {
       </div>
       <div className="title-layer scene" ref={scene}>
         <div className="title-earth" ref={earth}><EarthGlobe size={sizes.earth} light={SUN} /></div>
+        <div className="title-mars"><MoonGlobe world="mars" size={Math.max(24, Math.round(sizes.earth * 0.45))} spin={4} tilt={25} light={SUN} maxRes={140} label="Mars, far in the distance" /></div>
         <div className={`title-moon ${moonOn ? 'on' : ''}`} ref={moon}>
           <MoonGlobe size={sizes.moon} spin={2.2} tilt={6} lon={-8} light={SUN} maxRes={700} label="The Moon, slowly turning" onReady={() => setMoonOn(true)} />
         </div>
@@ -201,14 +203,15 @@ export default function Title() {
 
       <div className="title-ui">
         <header className="title-brand">
-          <h1 className="logo" aria-label="Lunar Scout">
-            <span aria-hidden="true">Lunar</span>
-            <span aria-hidden="true">Scout</span>
+          <h1 className="logo" aria-label={APP_NAME}>
+            <span aria-hidden="true">{APP_NAME.split(' ')[0]}</span>
+            <span aria-hidden="true">{APP_NAME.split(' ').slice(1).join(' ')}</span>
           </h1>
-          <p className="logo-sub">Earth Analog Hunt</p>
+          <p className="logo-sub">Moon Base · Mars · Earth twins</p>
           <p className="title-lede">
-            Find the Moon on Earth. Before anyone builds a base on the Moon, crews test their gear in places on Earth
-            that behave like it. Scout those places with real NASA data, pick your landing site, and build your base.
+            Find the Moon and Mars on Earth. Before crews build NASA's Moon Base at the lunar south pole, or the first
+            bases on Mars, they rehearse in places on Earth that behave like them. Scout those places, discover new ones
+            with live NASA and ESA data, then pick a landing site and build your base.
           </p>
         </header>
 
@@ -222,6 +225,7 @@ export default function Title() {
           </button>
           {returning && <button className="menu-item" onClick={() => setAskNew(true)}><span className="mi-label">New game</span></button>}
           <button className="menu-item" onClick={() => go('missions')}><span className="mi-label">Missions</span></button>
+          <button className="menu-item" onClick={() => go('twins')}><span className="mi-label">Twin finder</span></button>
           <button className="menu-item" onClick={startTutorial}><span className="mi-label">Tutorial</span></button>
           <button className="menu-item" onClick={() => go('about')}><span className="mi-label">How it works</span></button>
         </nav>

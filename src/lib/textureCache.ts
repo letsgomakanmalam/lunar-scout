@@ -1,4 +1,5 @@
 import { earthTextureSteps, moonTextureSteps, type EarthTexture, type MoonTexture } from './moonTexture'
+import { marsTextureSteps, type MarsTexture } from './marsTexture'
 import { runStepsAsync } from './globe'
 
 /**
@@ -48,4 +49,16 @@ export function loadEarth(): Promise<EarthTexture> {
   if (earth) return Promise.resolve(earth)
   if (!earthJob) earthJob = runStepsAsync(earthTextureSteps(512), () => false, 8).then(t => (earth = t!))
   return earthJob
+}
+
+let mars: MarsTexture | null = null
+let marsJob: Promise<MarsTexture> | null = null
+
+export const peekMars = () => mars
+
+/** Mars is only built when a Mars view first appears, in small slices so the page stays smooth. */
+export function loadMars(): Promise<MarsTexture> {
+  if (mars) return Promise.resolve(mars)
+  if (!marsJob) marsJob = runStepsAsync(marsTextureSteps(768), () => false, 10).then(t => (mars = t!))
+  return marsJob
 }

@@ -1,24 +1,45 @@
-# Data Used (fill in exact product names/links during the hackathon)
+# Data Used
+
+Every source below is also listed, with links, on the About screen and in each downloaded Analog Passport.
 
 ## NASA
-- LRO Diviner Lunar Radiometer — lunar surface temperatures
-- LRO LOLA — lunar topography, slope, polar illumination
-- LROC (WAC/NAC) — lunar imagery, pit/cave catalog
-- NASA Moon Trek / Mars Trek — browsing & base layers
-- NASA GIBS Blue Marble — Earth basemap in the app
-- NASA SVS CGI Moon Kit — Moon globe textures
-- NASADEM / SRTM — Earth elevation, slope, roughness
-- MODIS Land Surface Temperature (MOD11) — Earth day/night temperature
-- NASA POWER — precipitation / humidity (aridity)
-- SEDAC Gridded Population of the World — isolation
-- ASTER — spectral/geology support
+- NASA Moon Base plan and location (Shackleton Connecting Ridge); Artemis III candidate landing regions (2024 update)
+- LRO LOLA (topography, polar illumination), LRO Diviner (surface temperature), LROC (images, lunar pit catalog)
+- NASA Moon Trek and Mars Trek; NASA SVS CGI Moon Kit
+- MGS MOLA (Mars topography), MRO HiRISE and CRISM (images, minerals), Mars Odyssey THEMIS (Arsia Mons cave skylights)
+- SWIM, Mars Subsurface Water Ice Mapping (Morgan et al., 2021): buried-ice regions for human landing sites
+- Curiosity (including RAD radiation dose) and Perseverance rover missions
+- NASA POWER climatology: temperature, daily temperature range, precipitation (**live in the probe**)
+- MODIS NDVI MOD13Q1 through the ORNL DAAC web service (**live in the probe**); MODIS Land Surface Temperature
+- NASADEM elevation; SEDAC Gridded Population of the World; NSIDC Circum-Arctic Map of Permafrost
+- NASA GIBS imagery (Blue Marble, VIIRS daily)
+- JETT5 Artemis III field test in Arizona (reported by USGS), the motivation for the light calendar
 
-## Other agencies & sources
-- USGS Unified Geologic Map of the Moon
-- ESA Copernicus DEM (optional)
-- JAXA SELENE/Kaguya (optional)
-- Earth Impact Database (PASSC)
-- Global lithology map (GLiM)
+## Other space agencies
+- **ESA**: Copernicus DEM GLO-90 through the Open-Meteo Elevation API (**live in the probe**); Mars Express HRSC; ExoMars Rosalind Franklin (Oxia Planum); PANGAEA training sites
+- **JAXA**: SELENE (Kaguya), which found the Marius Hills pit
+- **ISRO**: Chandrayaan-2 data (PRADAN); HOPE analog mission at Tso Kar, Ladakh (2025)
+- **CNSA**: Tianwen-1 and Zhurong (Utopia Planitia); Chang'e 4 lunar surface radiation dose
+- **Canadian Space Agency**: analogue missions at Kamestastin (Mistastin) Lake crater
+
+## Other open data
+- USGS Unified Geologic Map of the Moon; USGS and NPS lava tube records
+- Macrostrat geologic map units (**live in the probe**: rock type at any point)
+- Earth Impact Database (PASSC, University of New Brunswick), 85 structures with coordinates, built into the app for crater scoring
+- GLiM Global Lithological Map
+- NOAA solar position equations, used to compute the low polar Sun factor and the light calendar
+- Published field studies for individual sites (named in each site's notes)
+
+## Live probe services
+| Service | What it gives the probe | Notes |
+|---|---|---|
+| NASA POWER climatology API | Temperature swing, extreme cold, dryness, ground-ice proxy | Keyless, allows browser requests |
+| Open-Meteo Elevation API (Copernicus DEM GLO-90, ESA) | Slope and roughness from a 5 x 5 grid over 4 km | Keyless |
+| ORNL DAAC MODIS web service (MOD13Q1) | Bare ground from peak-season NDVI | Keyless |
+| Macrostrat API | Volcanic rock, anorthosite, water-laid rock and salts | Keyless, CC-BY 4.0 data |
+| Photon by Komoot (reverse geocoding) | The place name of a probe | Only the coordinates are sent |
+
+Only the probed coordinates are sent to these services. Caves and remoteness are not measured live.
 
 ## Map layers and services (Explore Earth map)
 

@@ -1,13 +1,13 @@
 import { useState } from 'react'
-import { totalStars, useGame } from '../store'
-import { MISSIONS, targetById } from '../data/moon'
-import { EARTH_SITES } from '../data/earthSites'
+import { allSites, totalStars, useGame } from '../store'
+import { MISSIONS } from '../data/missions'
+import { targetById } from '../data/targets'
 import { isOperational, rankFor } from '../lib/base'
 import Icon from '../components/Icon'
 import { ConfirmDialog } from '../components/Modal'
 
 // Star thresholds, matching rankFor in lib/base.ts
-const RANK_AT = [0, 3, 8, 14]
+const RANK_AT = [0, 3, 8, 14, 24]
 
 function Insignia({ tier }: { tier: number }) {
   return (
@@ -26,6 +26,7 @@ export default function Dashboard() {
   const stars = totalStars(g.completed)
   const scannedSites = new Set(Object.values(g.scanned).flat())
   const landing = g.landingId ? targetById(g.landingId) : undefined
+  const sites = allSites(g)
   const done = Object.keys(g.completed).length
   const tier = RANK_AT.reduce((t, at, i) => (stars >= at ? i : t), 0)
   const next = RANK_AT[tier + 1]
@@ -54,7 +55,8 @@ export default function Dashboard() {
       <dl className="dash">
         <div className="tile cut"><dt><Icon name="rocket" size={16} />Missions passed</dt><dd>{done} <small>of {MISSIONS.length}</small></dd></div>
         <div className="tile cut"><dt><Icon name="star" size={16} />Stars</dt><dd>{stars} <small>of {MISSIONS.length * 3}</small></dd></div>
-        <div className="tile cut"><dt><Icon name="globe" size={16} />Sites scanned</dt><dd>{scannedSites.size} <small>of {EARTH_SITES.length}</small></dd></div>
+        <div className="tile cut"><dt><Icon name="globe" size={16} />Sites scanned</dt><dd>{scannedSites.size} <small>of {sites.length}</small></dd></div>
+        <div className="tile cut"><dt><Icon name="probe" size={16} />Live discoveries</dt><dd>{g.discoveries.length}</dd></div>
         <div className="tile cut"><dt><Icon name="rp" size={16} />Research points</dt><dd>{g.researchPoints}</dd></div>
         <div className="tile cut"><dt><Icon name="flag" size={16} />Landing site</dt><dd className="small">{landing?.name ?? 'Not chosen'}</dd></div>
         <div className="tile cut"><dt><Icon name="grid" size={16} />Base</dt><dd className="small">{g.grid.filter(Boolean).length} modules, {isOperational(g.grid, landing) ? 'operational' : 'not operational'}</dd></div>
@@ -69,7 +71,7 @@ export default function Dashboard() {
             return (
               <tr key={m.id}>
                 <td>{m.title}</td>
-                <td>{r ? EARTH_SITES.find(s => s.id === r.siteId)?.name : '–'}</td>
+                <td>{r ? sites.find(s => s.id === r.siteId)?.name ?? 'Removed probe' : '–'}</td>
                 <td>{r?.asi ?? '–'}</td>
                 <td className="log-stars">{r ? '★'.repeat(r.stars) : '–'}</td>
               </tr>

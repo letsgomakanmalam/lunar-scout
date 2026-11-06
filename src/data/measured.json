@@ -1,0 +1,5 @@
+{
+  "generated": null,
+  "note": "Filled by `npm run measure` (scripts/measure-sites.ts) from NASA POWER, Copernicus DEM, MODIS NDVI and Macrostrat. Values here replace the team estimates in earthSites.ts.",
+  "sites": {}
+}

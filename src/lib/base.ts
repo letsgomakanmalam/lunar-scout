@@ -1,4 +1,4 @@
-import type { LunarTarget, ModuleId } from '../data/types'
+import type { PlanetTarget, ModuleId } from '../data/types'
 import { moduleById } from '../data/modules'
 
 export interface PlacedModule { id: ModuleId; level: 1 | 2 }
@@ -8,28 +8,29 @@ export const GRID_SIZE = 6
 
 export const emptyGrid = (): BaseGrid => Array.from({ length: GRID_SIZE * GRID_SIZE }, () => null)
 
-export function moduleCost(id: ModuleId, landing: LunarTarget | undefined, upgrade = false): number {
+/** Research-point price, scaled by the landing site and its building discounts. */
+export function moduleCost(id: ModuleId, landing: PlanetTarget | undefined, upgrade = false): number {
   const def = moduleById(id)
   let cost = upgrade ? def.upgradeCost : def.cost
   cost *= landing?.landing?.costMultiplier ?? 1
-  if (id === 'ice' && landing?.id === 'shackleton') cost *= 0.7
+  cost *= landing?.landing?.discounts?.[id] ?? 1
   return Math.round(cost)
 }
 
 /** Energy to build, scaled by how hard the landing site is. */
-export function energyCost(id: ModuleId, landing: LunarTarget | undefined): number {
+export function energyCost(id: ModuleId, landing: PlanetTarget | undefined): number {
   return Math.max(1, Math.round(moduleById(id).energy * (landing?.landing?.costMultiplier ?? 1)))
 }
 
-export function modulePower(m: PlacedModule, landing: LunarTarget | undefined): number {
+export function modulePower(m: PlacedModule, landing: PlanetTarget | undefined): number {
   const def = moduleById(m.id)
   let p = def.power[m.level - 1]
   if (m.id === 'power') p += landing?.landing?.powerBonus ?? 0
-  if (m.id === 'habitat' && landing?.id === 'marius-hills') p += 1
+  if (m.id === 'habitat') p += landing?.landing?.habitatPower ?? 0
   return p
 }
 
-export function powerBalance(grid: BaseGrid, landing: LunarTarget | undefined) {
+export function powerBalance(grid: BaseGrid, landing: PlanetTarget | undefined) {
   let produced = 0
   let used = 0
   for (const cell of grid) {
@@ -46,13 +47,14 @@ export function crewCapacity(grid: BaseGrid) {
 }
 
 /** A base is operational with at least one habitat, one comms tower and non-negative power. */
-export function isOperational(grid: BaseGrid, landing: LunarTarget | undefined) {
+export function isOperational(grid: BaseGrid, landing: PlanetTarget | undefined) {
   const has = (id: ModuleId) => grid.some(c => c?.id === id)
   return has('habitat') && has('comms') && powerBalance(grid, landing).net >= 0
 }
 
 export function rankFor(stars: number) {
-  if (stars >= 14) return 'Chief selenologist'
+  if (stars >= 24) return 'Chief analog scientist'
+  if (stars >= 14) return 'Planetary geologist'
   if (stars >= 8) return 'Analog specialist'
   if (stars >= 3) return 'Field scout'
   return 'Cadet'

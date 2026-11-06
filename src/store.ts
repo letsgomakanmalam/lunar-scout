@@ -1,8 +1,9 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { ModuleId } from './data/types'
+import type { EarthSite, ModuleId } from './data/types'
 import { MODULES, moduleById } from './data/modules'
-import { MISSIONS, missionById, targetById } from './data/moon'
+import { MISSIONS, missionById, worldOfMission } from './data/missions'
+import { TARGETS, targetById } from './data/targets'
 import { EARTH_SITES } from './data/earthSites'
 import { computeASI, starsFor } from './lib/scoring'
 import { baseScore, emptyGrid, ENERGY_BASE_CAP, energyCap, energyCost, energyRegenMs, GOAL_REWARD, goalsReached, moduleCost, settleEnergy, type BaseGrid } from './lib/base'
@@ -14,7 +15,7 @@ export type MapBase = 'live' | 'satellite' | 'map' | 'blue'
 export interface MapPrefs { base: MapBase; labels: boolean; dayNight: boolean; sky: boolean; units: Units }
 const DEFAULT_MAP: MapPrefs = { base: 'live', labels: true, dayNight: true, sky: true, units: 'km' }
 
-export type Screen = 'title' | 'explore' | 'land' | 'build' | 'missions' | 'journal' | 'dashboard' | 'about'
+export type Screen = 'title' | 'explore' | 'twins' | 'land' | 'build' | 'missions' | 'journal' | 'dashboard' | 'about'
 
 export interface JournalEntry { id: string; date: string; title: string; text: string; auto: boolean }
 export interface MissionRecord { stars: number; siteId: string; asi: number }
@@ -54,6 +55,12 @@ interface GameState {
   baseTheme: 'moon' | 'cosy'
   /** From the browser's location service. Never saved. */
   myLocation: LatLon | null
+  /** Places the player characterized with a live field probe */
+  discoveries: EarthSite[]
+  /** Judge and teacher mode: every mission open */
+  allOpen: boolean
+  /** Twin finder: the Moon or Mars site being looked at */
+  twinTargetId: string
 
   go: (s: Screen) => void
   toggleMuted: () => void
@@ -61,6 +68,10 @@ interface GameState {
   setMapPrefs: (p: Partial<MapPrefs>) => void
   setBaseTheme: (t: 'moon' | 'cosy') => void
   setMyLocation: (p: LatLon | null) => void
+  addDiscovery: (site: EarthSite) => void
+  removeDiscovery: (id: string) => void
+  setAllOpen: (v: boolean) => void
+  setTwinTarget: (id: string) => void
   newGame: () => void
   startTutorial: () => void
   nextTutorialStep: () => void
@@ -110,6 +121,9 @@ const initial = {
   mapPrefs: DEFAULT_MAP,
   baseTheme: 'moon' as 'moon' | 'cosy',
   myLocation: null as LatLon | null,
+  discoveries: [] as EarthSite[],
+  allOpen: false,
+  twinTargetId: 'shackleton',
 }
 
 const now = () => new Date().toISOString()
@@ -118,30 +132,61 @@ const uid = () => Math.random().toString(36).slice(2, 10)
 export const totalStars = (completed: Record<string, MissionRecord>) =>
   Object.values(completed).reduce((n, r) => n + r.stars, 0)
 
+/** Every site the player can scan: the curated list plus their own live discoveries. */
+export const allSites = (s: Pick<GameState, 'discoveries'>): EarthSite[] => [...EARTH_SITES, ...s.discoveries]
+export const siteById = (s: Pick<GameState, 'discoveries'>, id: string | null) => (id ? allSites(s).find(x => x.id === id) ?? null : null)
+
 /** What the quests look at, from the saved game. */
-export const questContext = (s: Pick<GameState, 'landingId' | 'grid' | 'scanned' | 'completed'>): QuestCtx => ({
-  landingId: s.landingId,
-  landing: s.landingId ? targetById(s.landingId) : undefined,
-  grid: s.grid,
-  scannedCount: new Set(Object.values(s.scanned).flat()).size,
-  missionsDone: Object.keys(s.completed),
-  stars: totalStars(s.completed),
-})
+export const questContext = (s: Pick<GameState, 'landingId' | 'grid' | 'scanned' | 'completed'> & Partial<Pick<GameState, 'discoveries'>>): QuestCtx => {
+  const done = Object.keys(s.completed).filter(id => MISSIONS.some(m => m.id === id))
+  return {
+    landingId: s.landingId,
+    landing: s.landingId ? TARGETS.find(t => t.id === s.landingId) : undefined,
+    grid: s.grid,
+    scannedCount: new Set(Object.values(s.scanned).flat()).size,
+    missionsDone: done,
+    stars: totalStars(s.completed),
+    discoveries: s.discoveries?.length ?? 0,
+    worldsDone: new Set(done.map(id => worldOfMission(missionById(id)))).size,
+  }
+}
 
 /** Energy right now, including what has refilled since it was saved. */
 export const energyNow = (s: Pick<GameState, 'energy' | 'energyAt' | 'grid'>, now = Date.now()) =>
   settleEnergy(s.energy, s.energyAt, now, energyCap(s.grid), energyRegenMs(s.grid))
 
 /** Quests finished but not yet claimed. */
-export const claimableQuests = (s: Pick<GameState, 'landingId' | 'grid' | 'scanned' | 'completed' | 'claimed'>) => {
+export const claimableQuests = (s: Pick<GameState, 'landingId' | 'grid' | 'scanned' | 'completed' | 'claimed'> & Partial<Pick<GameState, 'discoveries'>>) => {
   const ctx = questContext(s)
   return QUESTS.filter(q => !s.claimed.includes(q.id) && questDone(q, ctx))
 }
 
-export const missionUnlocked = (id: string, completed: Record<string, MissionRecord>) => {
-  const idx = MISSIONS.findIndex(m => m.id === id)
-  if (idx <= 1) return true // tutorial and first real mission are always open
-  return Object.keys(completed).length >= idx - 1 // one more mission opens per completed mission
+/**
+ * Two campaigns. Moon: the tutorial and first mission are open, then one more per Moon mission passed.
+ * Mars: opens after any mission is passed, then one more per Mars mission passed. Judge mode opens all.
+ */
+export const missionUnlocked = (id: string, completed: Record<string, MissionRecord>, allOpen = false) => {
+  if (allOpen) return true
+  const m = MISSIONS.find(x => x.id === id)
+  if (!m) return false
+  const world = worldOfMission(m)
+  const track = MISSIONS.filter(x => worldOfMission(x) === world)
+  const idx = track.findIndex(x => x.id === id)
+  const done = track.filter(x => completed[x.id]).length
+  if (world === 'moon') return idx <= 1 || done >= idx - 1
+  return idx === 0 ? Object.keys(completed).length > 0 : done >= idx
+}
+
+/** Missions still to pass before this one opens (for the lock note). */
+export const missionsToOpen = (id: string, completed: Record<string, MissionRecord>) => {
+  const m = MISSIONS.find(x => x.id === id)
+  if (!m) return 0
+  const world = worldOfMission(m)
+  const track = MISSIONS.filter(x => worldOfMission(x) === world)
+  const idx = track.findIndex(x => x.id === id)
+  const done = track.filter(x => completed[x.id]).length
+  if (world === 'moon') return Math.max(0, idx - 1 - done)
+  return idx === 0 ? (Object.keys(completed).length ? 0 : 1) : Math.max(0, idx - done)
 }
 
 export const useGame = create<GameState>()(
@@ -155,6 +200,19 @@ export const useGame = create<GameState>()(
       setBaseTheme: baseTheme => set({ baseTheme }),
       setMapPrefs: p => set({ mapPrefs: { ...DEFAULT_MAP, ...get().mapPrefs, ...p } }),
       setMyLocation: myLocation => set({ myLocation }),
+      addDiscovery: site => {
+        const s = get()
+        set({
+          discoveries: [...s.discoveries.filter(d => d.id !== site.id), site],
+          journal: [{ id: uid(), date: now(), auto: true, title: `Field probe: ${site.name.replace(/^Field probe:\s*/, '')}`, text: site.description }, ...s.journal],
+        })
+      },
+      removeDiscovery: id => {
+        const s = get()
+        set({ discoveries: s.discoveries.filter(d => d.id !== id), selectedSiteId: s.selectedSiteId === id ? null : s.selectedSiteId })
+      },
+      setAllOpen: allOpen => set({ allOpen }),
+      setTwinTarget: twinTargetId => set({ twinTargetId }),
       // Start over: progress is cleared, settings and the leaderboard stay, and the guided tutorial begins.
       newGame: () => { get().resetAll(); get().startTutorial() },
 
@@ -198,7 +256,7 @@ export const useGame = create<GameState>()(
       certify: siteId => {
         const s = get()
         const mission = missionById(s.activeMissionId)
-        const site = EARTH_SITES.find(x => x.id === siteId)!
+        const site = siteById(s, siteId)!
         const result = computeASI(site, targetById(mission.targetId), mission)
         const asi = result.asi ?? 0
         const stars = starsFor(asi, mission.passAsi, s.probesUsed[mission.id] ?? 0)
@@ -316,10 +374,14 @@ export const useGame = create<GameState>()(
         set({ leaderboard })
       },
 
-      resetAll: () => set({ ...initial, grid: emptyGrid(), leaderboard: get().leaderboard, tutorialDone: get().tutorialDone, muted: get().muted, music: get().music, mapPrefs: get().mapPrefs, baseTheme: get().baseTheme, myLocation: get().myLocation }),
+      // Discoveries are real data the player gathered, so a new game keeps them (like the leaderboard).
+      resetAll: () => set({ ...initial, grid: emptyGrid(), leaderboard: get().leaderboard, tutorialDone: get().tutorialDone, muted: get().muted, music: get().music, mapPrefs: get().mapPrefs, baseTheme: get().baseTheme, myLocation: get().myLocation, discoveries: get().discoveries, allOpen: get().allOpen }),
     }),
     {
       name: 'lunar-scout-v1',
+      version: 2,
+      // Saves from before Mars: the Apollo 17 valley was the easy landing site, now the flat Mons Mouton plateau.
+      migrate: (persisted, version) => migrateSave(persisted as Record<string, unknown>, version) as unknown as GameState,
       partialize: s => {
         const { screen: _screen, selectedSiteId: _sel, myLocation: _me, ...rest } = s
         return rest
@@ -327,5 +389,19 @@ export const useGame = create<GameState>()(
     },
   ),
 )
+
+/** Brings an older save up to date. Unknown missions and targets are dropped instead of crashing the game. */
+export function migrateSave(p: Record<string, unknown>, version: number): Record<string, unknown> {
+  const out = { ...p }
+  if (version < 2) {
+    if (out.landingId === 'taurus-littrow') out.landingId = 'mons-mouton'
+    if (typeof out.landingId === 'string' && !TARGETS.some(t => t.id === out.landingId && t.landable)) out.landingId = null
+    if (typeof out.activeMissionId === 'string' && !MISSIONS.some(m => m.id === out.activeMissionId)) out.activeMissionId = 'tutorial'
+    const completed = (out.completed ?? {}) as Record<string, MissionRecord>
+    out.completed = Object.fromEntries(Object.entries(completed).filter(([id]) => MISSIONS.some(m => m.id === id)))
+    if (!Array.isArray(out.discoveries)) out.discoveries = []
+  }
+  return out
+}
 
 export { PROBES_PER_MISSION }

@@ -1,23 +1,49 @@
 import { useEffect, useRef, useState } from 'react'
-import { PROBES_PER_MISSION, useGame } from '../store'
+import { PROBES_PER_MISSION, allSites, siteById, useGame } from '../store'
 import EarthMap from '../components/EarthMap'
 import MoonGlobe from '../components/MoonGlobe'
 import AsiRadar from '../components/AsiRadar'
 import Icon from '../components/Icon'
+import LightCalendar from '../components/LightCalendar'
 import RewardOverlay, { type CertifyResult } from '../components/RewardOverlay'
 import { AsiGauge, Scanner } from '../components/ScanFx'
 import { EARTH_SITES } from '../data/earthSites'
-import { LUNAR_TARGETS, MISSIONS, missionById, targetById } from '../data/moon'
-import { FACTOR_LABELS, type FactorKey } from '../data/types'
+import { MISSIONS, missionById } from '../data/missions'
+import { targetById, targetsOf } from '../data/targets'
+import { FACTOR_KEYS, FACTOR_LABELS, WORLD_LABEL, type FactorKey, type FactorValue } from '../data/types'
 import { sourceById } from '../data/sources'
 import { computeASI, strengthsAndWeaknesses } from '../lib/scoring'
 import { fmtCoords } from '../lib/format'
-import { distanceKm, formatDistance } from '../lib/geo'
+import { distanceKm, formatDistance, nearest } from '../lib/geo'
+import { STEPS, runProbe, type StepId, type StepState } from '../lib/probeFetch'
+import { NEW_ANALOG_ASI, NEW_ANALOG_KM, looksLikeSea, probeFactors, probeSite } from '../lib/probe'
+import { download, matchesFor, passportJson, passportMarkdown, slug } from '../lib/passport'
+import { lunarMaxSun } from '../lib/sun'
 import { sfx } from '../lib/sfx'
 import { prefersReducedMotion, useMedia } from '../lib/motion'
+import { APP_NAME } from '../brand'
 
-const STATUS_LABEL = { known: 'Known analog', candidate: 'New candidate', local: 'Malaysia' } as const
-const MARKERS = LUNAR_TARGETS.map(t => ({ id: t.id, lat: t.lat, lon: t.lon, label: t.name }))
+const STATUS_LABEL = { known: 'Known analog', candidate: 'New candidate', local: 'Malaysia', discovery: 'Live discovery' } as const
+
+type Steps = Partial<Record<StepId, StepState>>
+
+function ProbeSteps({ steps, skip = [] }: { steps: Steps; skip?: StepId[] }) {
+  return (
+    <ul className="probe-steps" aria-live="polite">
+      {STEPS.filter(s => !skip.includes(s.id)).map(s => {
+        const v = steps[s.id]
+        return (
+          <li key={s.id} className={`ps-${v ?? 'wait'}`}>
+            <span className="ps-icon" aria-hidden="true">{v === 'ok' ? <Icon name="check" size={14} /> : v === 'fail' ? <Icon name="cross" size={14} /> : <i className="ps-spin" />}</span>
+            <span>{s.label}</span>
+            <span className="ps-src">{s.source}</span>
+            <span className="sr-only">{v === 'ok' ? 'received' : v === 'fail' ? 'not available' : 'loading'}</span>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
 
 export default function Explore() {
   const g = useGame()
@@ -26,14 +52,18 @@ export default function Explore() {
   const target = targetById(mission.targetId)
   const scannedIds = g.scanned[mission.id] ?? []
   const probesLeft = PROBES_PER_MISSION - (g.probesUsed[mission.id] ?? 0)
-  const site = EARTH_SITES.find(s => s.id === g.selectedSiteId) ?? null
+  const sites = allSites(g)
+  const site = siteById(g, g.selectedSiteId)
   const isScanned = site ? scannedIds.includes(site.id) : false
   const [scanning, setScanning] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [reward, setReward] = useState<CertifyResult | null>(null)
+  const [probe, setProbe] = useState<{ lat: number; lon: number; steps: Steps; error?: string } | null>(null)
+  const [check, setCheck] = useState<{ siteId: string; steps: Steps; factors: Record<FactorKey, FactorValue> | null } | null>(null)
   const compact = useMedia('(max-width: 899px)')
   const scanPanel = useRef<HTMLElement>(null)
   const { tutorialEvent, tutorialDone } = g
+  const markers = targetsOf(target.world).map(t => ({ id: t.id, lat: t.lat, lon: t.lon, label: t.name }))
 
   useEffect(() => setMessage(null), [g.selectedSiteId, mission.id])
   useEffect(() => { if (g.selectedSiteId) tutorialEvent('site') }, [g.selectedSiteId, tutorialEvent])
@@ -65,6 +95,42 @@ export default function Explore() {
     if (r.stars > 0) tutorialEvent('certified')
   }
 
+  /** Characterize any point on Earth from live open data, then add it to the map as a discovery. */
+  const startProbe = async (lat: number, lon: number) => {
+    if (probe && !probe.error) return
+    const id = `probe-${Date.now().toString(36)}`
+    g.selectSite(null)
+    setProbe({ lat, lon, steps: {} })
+    sfx('scan')
+    const res = await runProbe(lat, lon, {
+      onStep: (sid, st) => setProbe(p => (p && p.lat === lat && p.lon === lon ? { ...p, steps: { ...p.steps, [sid]: st } } : p)),
+    })
+    const fail = (error: string) => { sfx('error'); setProbe(p => (p && p.lat === lat && p.lon === lon ? { ...p, error } : p)) }
+    if (!res.climate && !res.elevations && res.ndvi == null && !res.geology) return fail('No data service answered. Check the internet connection and try again.')
+    if (res.elevations && looksLikeSea(res.elevations)) return fail('That point looks like open water. Probe a place on land.')
+    const found = probeSite(id, lat, lon, res.place, res)
+    g.addDiscovery(found)
+    g.selectSite(found.id)
+    setProbe(null)
+  }
+
+  /** Measure a listed site live and compare with the team's estimates. */
+  const startCheck = async () => {
+    if (!site) return
+    const { id, lat, lon } = site
+    setCheck({ siteId: id, steps: {}, factors: null })
+    const res = await runProbe(lat, lon, {
+      skipPlace: true,
+      onStep: (sid, st) => setCheck(c => (c && c.siteId === id ? { ...c, steps: { ...c.steps, [sid]: st } } : c)),
+    })
+    setCheck(c => (c && c.siteId === id ? { ...c, factors: probeFactors(lat, lon, res) } : c))
+  }
+
+  const armProbe = () => {
+    window.dispatchEvent(new Event('ls-arm-probe'))
+    if (compact) document.querySelector('.map-col')?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' })
+  }
+
   const result = site && isScanned ? computeASI(site, target, mission) : null
   const sw = result ? strengthsAndWeaknesses(result) : null
   const pass = result?.asi != null && result.asi >= mission.passAsi
@@ -73,6 +139,19 @@ export default function Explore() {
     label: FACTOR_LABELS[k],
     source: (sourceById(site?.factors[k].sourceId ?? '')?.name ?? 'Unknown source').split(' (')[0],
   }))
+  const estimates = result ? result.factors.filter(f => site!.factors[f.key].estimate).length : 0
+  const dataNote = !result ? '' : estimates === 0
+    ? 'All values here are measured or computed from the sources below.'
+    : estimates === result.factors.length ? 'Values are team estimates from the sources below.' : `${estimates} of ${result.factors.length} values are team estimates; the rest are measured or computed.`
+  const polar = target.world === 'moon' && (target.factors.lowsun ?? 0) >= 0.5
+
+  // A strong live discovery far from every listed analog is a new analog candidate
+  const best = site?.status === 'discovery' ? matchesFor(site)[0] : null
+  const nearestListed = site?.status === 'discovery' ? nearest(site, EARTH_SITES) : null
+  const isNewAnalog = !!best && best.asi >= NEW_ANALOG_ASI && !!nearestListed && nearestListed.km > NEW_ANALOG_KM
+  const liveRows = check?.factors && site && check.siteId === site.id
+    ? FACTOR_KEYS.filter(k => check.factors![k].value != null && check.factors![k].sourceId !== 'solar-geometry')
+    : []
 
   return (
     <div className="explore">
@@ -82,9 +161,10 @@ export default function Explore() {
           <h2>{mission.title}</h2>
         </header>
         <div className="target-view">
-          <MoonGlobe size={compact ? 112 : 176} maxRes={320} target={target} markers={MARKERS} label={`The Moon, turned to ${target.name}`} />
-          <p className="target-name">{target.name}</p>
-          <p className="coords">{fmtCoords(target.lat, target.lon)}</p>
+          <MoonGlobe size={compact ? 112 : 176} maxRes={320} target={target} markers={markers} world={target.world} label={`${WORLD_LABEL[target.world]}, turned to ${target.name}`} />
+          <p className="target-name"><span className={`chip world-${target.world}`}>{WORLD_LABEL[target.world]}</span>{target.name}</p>
+          <p className="coords">{target.approx ? '≈ ' : ''}{fmtCoords(target.lat, target.lon)}</p>
+          {target.program && <p className="coords">{target.program}</p>}
         </div>
         <p>{mission.brief}</p>
         <p className="tip"><Icon name="tip" size={18} /><span>Hint: {mission.equipmentTip}</span></p>
@@ -104,35 +184,70 @@ export default function Explore() {
           </span>
           <span className="pass-mark">Pass mark <strong>{mission.passAsi}</strong></span>
         </div>
-        <button className="btn ghost cut small" onClick={() => g.go('missions')}>Change mission</button>
+        <div className="brief-actions">
+          <button className="btn ghost cut small" onClick={() => g.go('missions')}>Change mission</button>
+          <button className="btn ghost cut small" onClick={() => { g.setTwinTarget(target.id); g.go('twins') }}><Icon name="twins" size={16} />Twin finder</button>
+        </div>
       </aside>
 
       <section className="map-col" data-tut="map">
-        <EarthMap selectedId={g.selectedSiteId} scannedIds={scannedIds} onSelect={g.selectSite} />
+        <EarthMap selectedId={g.selectedSiteId} scannedIds={scannedIds} onSelect={g.selectSite} sites={sites} onProbe={startProbe} probing={probe && !probe.error ? probe : null} />
       </section>
 
       <aside className="panel scan" ref={scanPanel}>
-        {!site && (
+        {probe && (
+          <div className="probe-live">
+            <h2>{probe.error ? 'Probe failed' : 'Probing with live data'}</h2>
+            <p className="coords">{fmtCoords(probe.lat, probe.lon, 3)}</p>
+            <ProbeSteps steps={probe.steps} />
+            {probe.error
+              ? <><p className="message" role="alert">{probe.error}</p><button className="btn ghost cut small" onClick={() => setProbe(null)}>Close</button></>
+              : <p className="meta">Reading climate, terrain, vegetation and rock type for this exact spot. Caves and remoteness need field surveys, so they stay as no data.</p>}
+          </div>
+        )}
+
+        {!site && !probe && (
           <div className="pick">
             <h2>Pick a site</h2>
             <p className="meta">Tap a marker on the map, or choose from the list.</p>
             <select aria-label="Choose a site" onChange={e => g.selectSite(e.target.value || null)} value="">
               <option value="">Choose a site…</option>
-              {EARTH_SITES.map(s => <option key={s.id} value={s.id}>{s.name}, {s.country}</option>)}
+              {g.discoveries.length > 0 && (
+                <optgroup label="Your discoveries">
+                  {g.discoveries.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </optgroup>
+              )}
+              <optgroup label="Listed analog sites">
+                {EARTH_SITES.map(s => <option key={s.id} value={s.id}>{s.name}, {s.country}</option>)}
+              </optgroup>
             </select>
             <p className="pick-hint"><Icon name="probe" size={16} />{probesLeft} of {PROBES_PER_MISSION} probes left for this mission.</p>
+            <div className="discover-card cut">
+              <h3>Find a new analog</h3>
+              <p>Probe any point on Earth. The app reads NASA POWER climate, ESA Copernicus terrain, NASA MODIS vegetation and the geologic map for that spot, then scores it against every Moon and Mars site.</p>
+              <button className="btn primary cut small" onClick={armProbe}><Icon name="target" size={16} />Arm the probe tool</button>
+              <p className="meta">Or search a place on the map and press "Probe here".</p>
+            </div>
           </div>
         )}
 
-        {site && (
+        {site && !probe && (
           <>
             <div className="site-head">
               <span className={`chip st-${site.status}`}>{STATUS_LABEL[site.status]}</span>
+              {isNewAnalog && <span className="chip gold new-analog"><Icon name="star" size={12} />New analog candidate</span>}
               <h2>{site.name}</h2>
               <p className="coords">{site.country}, {fmtCoords(site.lat, site.lon)}</p>
               {g.myLocation && <p className="coords from-you"><Icon name="target" size={13} />{formatDistance(distanceKm(g.myLocation, site), g.mapPrefs.units)} from you</p>}
             </div>
             <p>{site.description}</p>
+            {site.analogUse && <p className="meta"><Icon name="flag" size={14} /> Used for: {site.analogUse}</p>}
+            {site.status === 'discovery' && best && nearestListed && (
+              <p className="tip"><Icon name="info" size={18} /><span>
+                Best match: {best.target.name} ({WORLD_LABEL[best.target.world]}), {best.asi}. Nearest listed analog: {nearestListed.item.name}, {formatDistance(nearestListed.km, g.mapPrefs.units)} away.
+                {isNewAnalog ? ' Strong and far from known analogs: worth a field visit.' : ` New analog candidates score ${NEW_ANALOG_ASI}+ and sit over ${NEW_ANALOG_KM} km from listed sites.`}
+              </span></p>
+            )}
 
             {!isScanned && (
               <button className="btn primary cut wide" data-sfx="none" data-tut="scan-button" onClick={doScan} disabled={probesLeft <= 0}>
@@ -156,7 +271,7 @@ export default function Explore() {
                     </div>
                   </div>
                 </div>
-                <p className="meta">Values are team estimates from the sources below.</p>
+                <p className="meta">{dataNote}</p>
                 <AsiRadar result={result} />
                 {sw && (sw.strengths.length > 0 || sw.weaknesses.length > 0) && (
                   <div className="sw">
@@ -164,14 +279,21 @@ export default function Explore() {
                     {sw.weaknesses.length > 0 && <p><span className="sw-label">Weak points</span>{sw.weaknesses.map(k => <span key={k} className="chip bad">{FACTOR_LABELS[k]}</span>)}</p>}
                   </div>
                 )}
+                {polar && (
+                  <>
+                    <h3>South-pole light here</h3>
+                    <LightCalendar lat={site.lat} maxDeg={lunarMaxSun(target.lat)} targetName={target.name.split(' (')[0]} />
+                  </>
+                )}
                 <details>
                   <summary>Data sources</summary>
                   <ul className="sources">
                     {result.factors.map(f => {
-                      const src = sourceById(site.factors[f.key].sourceId)
+                      const fv = site.factors[f.key]
+                      const src = sourceById(fv.sourceId)
                       return (
                         <li key={f.key}>
-                          {FACTOR_LABELS[f.key]}: {src ? <a href={src.url} target="_blank" rel="noreferrer">{src.name}</a> : 'unknown'}
+                          <strong>{FACTOR_LABELS[f.key]}</strong>: {fv.raw}{fv.estimate ? ' (estimate)' : ''}. {src ? <a href={src.url} target="_blank" rel="noreferrer">{src.name}</a> : 'unknown source'}
                         </li>
                       )
                     })}
@@ -180,6 +302,44 @@ export default function Explore() {
                 <button className="btn primary cut wide" data-sfx="none" data-tut="certify" onClick={doCertify}><Icon name="check" size={18} />Certify this site</button>
               </div>
             )}
+
+            {site.status !== 'discovery' && (
+              <div className="live-check">
+                {!check || check.siteId !== site.id ? (
+                  <button className="btn ghost cut small" onClick={startCheck}><Icon name="signal" size={16} />Check against live data</button>
+                ) : !check.factors ? (
+                  <><p className="meta">Measuring this site live…</p><ProbeSteps steps={check.steps} skip={['place']} /></>
+                ) : (
+                  <details open>
+                    <summary>Live data check</summary>
+                    {liveRows.length === 0 ? <p className="meta">No service answered. Try again when online.</p> : (
+                      <table className="live-table">
+                        <thead><tr><th>Factor</th><th>Listed</th><th>Live</th></tr></thead>
+                        <tbody>
+                          {liveRows.map(k => {
+                            const a = site.factors[k], b = check.factors![k]
+                            return (
+                              <tr key={k}>
+                                <th scope="row">{FACTOR_LABELS[k]}</th>
+                                <td>{a.value == null ? '–' : a.value.toFixed(2)}{a.estimate ? '*' : ''}</td>
+                                <td title={b.raw}>{b.value!.toFixed(2)} <small>{b.raw}</small></td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    )}
+                    <p className="meta">* team estimate. Live values cover the exact point and the nearest data grid cell, so a site that spans many kilometres can differ.</p>
+                  </details>
+                )}
+              </div>
+            )}
+
+            <div className="report-row">
+              <button className="btn ghost cut small" onClick={() => download(`analog-passport-${slug(site.name)}.md`, passportMarkdown(site, APP_NAME))}><Icon name="download" size={16} />Analog Passport</button>
+              <button className="btn ghost cut small" onClick={() => download(`analog-passport-${slug(site.name)}.json`, JSON.stringify(passportJson(site, APP_NAME), null, 2), 'application/json')}>JSON</button>
+              {site.status === 'discovery' && <button className="btn ghost cut small danger" onClick={() => g.removeDiscovery(site.id)}><Icon name="remove" size={16} />Remove probe</button>}
+            </div>
             {message && <p className="message" role="status">{message}</p>}
             <button className="btn ghost cut small" data-sfx="back" onClick={() => g.selectSite(null)}>Back to site list</button>
           </>

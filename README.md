@@ -1,10 +1,24 @@
-# Lunar Scout: Earth Analog Hunt
+# Analog Scout: Earth twins for the Moon Base and Mars
 
 NASA Space Apps Challenge 2026, Kuala Lumpur. Theme: The Next Frontier.
 
-Explore real places on Earth that behave like the Moon, pick a lunar landing site based on what you learn, and build your Moon base by completing science missions. Every score is explained and cited.
+Find and characterize places on Earth that behave like NASA's Moon Base site at the lunar south pole and like the first base sites on Mars. Probe any point on Earth with live NASA and ESA data, plan field campaigns with the Twin finder, then land on the Moon or Mars and build your base. Every score is explained and cited.
+
+Built for the NASA Space Apps Challenge 2026 challenge **"Identify Earth Locations that Analog the Permanent Moon Base Locations and Mars"**. The app was renamed from Lunar Scout to Analog Scout because it now covers Mars; the repository, live URL and save key stay `lunar-scout`. To change the name, edit `src/brand.ts`.
 
 **Live site:** https://letsgomakanmalam.github.io/lunar-scout/ (updates automatically on every push to `main`)
+
+## What it does
+- **Real targets on two worlds.** The Moon: NASA's Moon Base site on the Shackleton Connecting Ridge, the Artemis III candidate regions at Malapert Massif and Mons Mouton, and the Marius Hills lava-tube pit. Mars: the SWIM buried-ice regions (Arcadia Planitia, Deuteronilus Mensae) and rover sites from NASA (Jezero, Gale), ESA (Oxia Planum) and CNSA (Utopia Planitia), plus the Arsia Mons cave skylights.
+- **30 Earth sites, 13 factors each**: deserts, polar regions, volcanic fields, caves, impact craters, acidic waters, salt basins and highlands. Known analogs, under-used candidates (including two in Indonesia near Kuala Lumpur) and Malaysian comparison sites. New factors: ground ice, highland rock (anorthosite, the rock of the lunar south pole), bare ground, water-laid rock and salts, and low polar Sun.
+- **Probe any point on Earth** (crosshair button on the map, or "Probe here" on a search result). The app reads NASA POWER climate, ESA Copernicus DEM terrain, NASA MODIS vegetation, the Macrostrat geologic map and the Earth Impact Database for that spot, scores it against every Moon and Mars target, and flags a **new analog candidate** when it scores 75+ more than 200 km from any listed analog.
+- **Twin finder**: pick any Moon or Mars site to see its best Earth twins, the best three-site field campaign (greedy maximum coverage), and what no place on Earth can copy (gravity, air, radiation, temperature, day length, dust) with how teams test those instead.
+- **South-pole light calendar**: the dates when the Sun at an Earth site stays as low as at the lunar south pole. NASA fakes this lighting with spotlights at night; this finds where and when the real Sun does it.
+- **Reports**: download an Analog Passport (Markdown and JSON) for any site, or a twin report for any Moon or Mars site.
+- **Judge mode**: the Missions screen has a switch that opens all 13 missions at once.
+
+## Replace estimates with measured values
+With an internet connection, run `npm run measure` (or `npm run measure -- --only=atacama,svalbard`). It measures temperature swing, dryness, extreme cold, slope and roughness, and bare ground for every listed site and writes `src/data/measured.json`; the app then shows those values as measured instead of estimated. Then run `npm test`: the data tests check that every mission can still be passed. Rock type, ground ice and craters stay as reviewed estimates, because one map point can miss what a site is known for; use **Check against live data** on any site to compare them.
 
 ## Run it on Windows (easiest)
 1. Install **Node.js LTS** from https://nodejs.org (version 20 or newer).
@@ -50,7 +64,8 @@ Every time you start the site (`start-dev.bat` or `npm run dev`), your changes a
 ## Earth map
 The Explore Earth map works like Google Maps:
 - **Map types** (layers button): *Live Earth* (NASA's latest daily satellite picture, sharpening into Sentinel-2 detail as you zoom), *Satellite* (Sentinel-2, 10 m), *Map* (streets and places from OpenStreetMap) and *Blue Marble*.
-- **Search** any place, and use the **location** button to show where you are. Each search result shows how far it is from you and its nearest Moon analog.
+- **Search** any place, and use the **location** button to show where you are. Each search result shows how far it is from you, its nearest listed analog, and a **Probe here** button.
+- **Probe** (crosshair button): click any point on land to characterize it with live NASA and ESA data. Your discoveries appear as teal markers.
 - **Measure** (ruler button): tap points on Earth to get distances along the curved Earth, in km or miles.
 - **Live**: the day and night shadow, and where the Sun and the Moon are directly overhead, update every minute.
 No API keys are needed. Search and map tiles need an internet connection; the game itself still works offline with imagery only.
@@ -74,7 +89,7 @@ Phones (portrait and landscape), tablets, laptops and large monitors each get th
 See `.kiro/steering/structure.md`. Specs are in `.kiro/specs/lunar-analog-game/`, automation hooks in `.kiro/hooks/`.
 
 ## Data
-See `DATA_USED.md`. Site values are currently team estimates based on the cited NASA and partner datasets and are labelled as estimates in the app.
+See `DATA_USED.md`. Low polar Sun is computed; live probes measure their values directly; the other listed-site values are team estimates read from the cited datasets until `npm run measure` replaces them, and the app labels every estimate.
 
 ## Credits
-Imagery: NASA GIBS Blue Marble. Data: NASA (MODIS, POWER, NASADEM, SEDAC, LRO Diviner, LOLA, LROC, Moon Trek), USGS, GLiM, Earth Impact Database.
+Data: NASA (POWER, MODIS via the ORNL DAAC, NASADEM, SEDAC, NSIDC, LRO LOLA/Diviner/LROC, Moon Trek and Mars Trek, MGS MOLA, MRO HiRISE and CRISM, Mars Odyssey THEMIS, SWIM, Curiosity, Perseverance, GIBS), ESA (Copernicus DEM, Mars Express, ExoMars), JAXA (Kaguya), ISRO (Chandrayaan-2, HOPE), CNSA (Tianwen-1, Chang'e 4), Canadian Space Agency, USGS, Macrostrat, GLiM, Earth Impact Database. Imagery: NASA GIBS, EOX Sentinel-2 cloudless, OpenFreeMap.

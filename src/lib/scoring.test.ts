@@ -1,18 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { computeASI, factorSimilarity, starsFor } from './scoring'
-import type { EarthSite, LunarTarget, Mission } from '../data/types'
+import { FACTOR_KEYS, type EarthSite, type FactorKey, type FactorValue, type PlanetTarget, type Mission } from '../data/types'
 
 const fv = (value: number | null) => ({ value, raw: '', sourceId: 'power', estimate: true })
 const v = (vals: Partial<Record<string, number | null>>, k: string) => (k in vals ? vals[k] ?? null : 0.5)
 const site = (vals: Partial<Record<string, number | null>>): EarthSite => ({
   id: 's', name: 'S', country: 'X', lat: 0, lon: 0, status: 'known', environment: 'desert', description: '',
-  factors: {
-    thermal: fv(v(vals, 'thermal')), aridity: fv(v(vals, 'aridity')), roughness: fv(v(vals, 'roughness')),
-    basalt: fv(v(vals, 'basalt')), crater: fv(v(vals, 'crater')), caves: fv(v(vals, 'caves')),
-    cold: fv(v(vals, 'cold')), isolation: fv(v(vals, 'isolation')),
-  },
+  factors: Object.fromEntries(FACTOR_KEYS.map(k => [k, fv(v(vals, k))])) as Record<FactorKey, FactorValue>,
 })
-const target: LunarTarget = { id: 't', name: 'T', lat: 0, lon: 0, description: '', landable: false, factors: { aridity: 1, roughness: 0.5, isolation: 1 } }
+const target: PlanetTarget = { id: 't', world: 'moon', kind: 'science', name: 'T', lat: 0, lon: 0, description: '', facts: [], sourceIds: [], profile: {}, landable: false, factors: { aridity: 1, roughness: 0.5, isolation: 1 } }
 const mission: Mission = { id: 'm', title: 'M', brief: '', targetId: 't', passAsi: 60, reward: 0, equipmentTip: '', weights: { aridity: 0.5, roughness: 0.25, isolation: 0.25 } }
 
 describe('factorSimilarity', () => {

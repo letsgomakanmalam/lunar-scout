@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import maplibregl, { type GeoJSONSource, type Map as MLMap, type Marker, type StyleSpecification } from 'maplibre-gl'
 import { EARTH_SITES } from '../data/earthSites'
+import type { EarthSite } from '../data/types'
 import { useGame, type MapBase, type MapPrefs } from '../store'
 import { distanceKm, formatDistance, greatCircle, nearest, pathKm, unwrapLon, type LatLon, type PlaceHit } from '../lib/geo'
 import { nightBands, skyAt, type SkyNow } from '../lib/sky'
@@ -12,6 +13,12 @@ interface Props {
   selectedId: string | null
   scannedIds: string[]
   onSelect: (id: string | null) => void
+  /** Sites to show: the curated list plus live discoveries */
+  sites?: EarthSite[]
+  /** Called when the player probes a point with live data (probe tool or a search result) */
+  onProbe?: (lat: number, lon: number) => void
+  /** A probe in progress, shown as a pulsing ring */
+  probing?: { lat: number; lon: number } | null
 }
 
 // Street map: OpenFreeMap "Liberty" (OpenStreetMap data, free, no key). If it can't load, the
@@ -22,7 +29,7 @@ const BLUE = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_Shad
 const VIIRS = (date: string) => `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_NOAA20_CorrectedReflectance_TrueColor/default/${date}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`
 const S2 = 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg'
 const OWN = new Set(['ls-blue', 'ls-s2', 'ls-today', 'ls-night', 'ls-measure-line', 'ls-measure-pts', 'sites-glow', 'sites'])
-const STATUS_COLOR = ['match', ['get', 'status'], 'candidate', '#e9b24c', 'local', '#ff7ab8', '#ebe6da'] as unknown as string
+const STATUS_COLOR = ['match', ['get', 'status'], 'candidate', '#e9b24c', 'local', '#ff7ab8', 'discovery', '#4fe3d0', '#ebe6da'] as unknown as string
 
 export const BASES: { id: MapBase; label: string; note: (date: string) => string }[] = [
   { id: 'live', label: 'Live Earth', note: d => `NASA satellite, ${d}` },
@@ -57,10 +64,10 @@ class ToolControl implements maplibregl.IControl {
   onRemove() { this.el?.remove() }
 }
 
-function sitesData(selectedId: string | null, scannedIds: string[]) {
+function sitesData(sites: EarthSite[], selectedId: string | null, scannedIds: string[]) {
   return {
     type: 'FeatureCollection' as const,
-    features: EARTH_SITES.map(s => ({
+    features: sites.map(s => ({
       type: 'Feature' as const,
       properties: { id: s.id, name: s.name, status: s.status, selected: s.id === selectedId ? 1 : 0, scanned: scannedIds.includes(s.id) ? 1 : 0 },
       geometry: { type: 'Point' as const, coordinates: [s.lon, s.lat] },
@@ -87,7 +94,7 @@ function install(map: MLMap, date: string) {
   map.addSource('ls-measure', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
   map.addLayer({ id: 'ls-measure-line', type: 'line', source: 'ls-measure', filter: ['==', ['geometry-type'], 'LineString'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#ffd98c', 'line-width': 3, 'line-dasharray': [2, 1.4] } })
   map.addLayer({ id: 'ls-measure-pts', type: 'circle', source: 'ls-measure', filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-radius': 5.5, 'circle-color': '#ffffff', 'circle-stroke-color': '#e9b24c', 'circle-stroke-width': 2.5 } })
-  map.addSource('sites', { type: 'geojson', data: sitesData(null, []) })
+  map.addSource('sites', { type: 'geojson', data: sitesData(EARTH_SITES, null, []) })
   map.addLayer({ id: 'sites-glow', type: 'circle', source: 'sites', paint: { 'circle-radius': 15, 'circle-blur': 1, 'circle-opacity': 0.45, 'circle-color': STATUS_COLOR } })
   map.addLayer({
     id: 'sites', type: 'circle', source: 'sites',
@@ -124,7 +131,7 @@ function skyMarker(kind: 'sun' | 'moon') {
   return new maplibregl.Marker({ element: el })
 }
 
-export default function EarthMap({ selectedId, scannedIds, onSelect }: Props) {
+export default function EarthMap({ selectedId, scannedIds, onSelect, sites = EARTH_SITES, onProbe, probing = null }: Props) {
   const prefs = useGame(s => s.mapPrefs)
   const setPrefs = useGame(s => s.setMapPrefs)
   const me = useGame(s => s.myLocation)
@@ -144,6 +151,8 @@ export default function EarthMap({ selectedId, scannedIds, onSelect }: Props) {
   const [failed, setFailed] = useState(false)
   const [panel, setPanel] = useState(false)
   const [measuring, setMeasuring] = useState(false)
+  const [probeMode, setProbeMode] = useState(false)
+  const probeMarker = useRef<Marker | null>(null)
   const [points, setPoints] = useState<LatLon[]>([])
   const [place, setPlace] = useState<PlaceHit | null>(null)
   const [geoError, setGeoError] = useState<string | null>(null)
@@ -152,8 +161,8 @@ export default function EarthMap({ selectedId, scannedIds, onSelect }: Props) {
   const date = useMemo(() => new Date(Date.now() - 86400000).toISOString().slice(0, 10), [])
   const dateLabel = useMemo(() => new Date(`${date}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }), [date])
 
-  const live = useRef({ selectedId, scannedIds, onSelect, measuring, prefs, sky })
-  live.current = { selectedId, scannedIds, onSelect, measuring, prefs, sky }
+  const live = useRef({ selectedId, scannedIds, onSelect, measuring, prefs, sky, sites, probeMode, onProbe })
+  live.current = { selectedId, scannedIds, onSelect, measuring, prefs, sky, sites, probeMode, onProbe }
 
   useEffect(() => {
     if (!box.current) return
@@ -184,7 +193,7 @@ export default function EarthMap({ selectedId, scannedIds, onSelect }: Props) {
       clearTimeout(timer)
       install(map, date)
       const L = live.current
-      ;(map.getSource('sites') as GeoJSONSource).setData(sitesData(L.selectedId, L.scannedIds))
+      ;(map.getSource('sites') as GeoJSONSource).setData(sitesData(L.sites, L.selectedId, L.scannedIds))
       ;(map.getSource('ls-night') as GeoJSONSource).setData(nightBands(L.sky.sun))
       apply(map, L.prefs, !fellBack)
       // Fold the credits behind the (i) button once the map has settled, so they don't cover the legend
@@ -206,7 +215,8 @@ export default function EarthMap({ selectedId, scannedIds, onSelect }: Props) {
     map.addControl(new maplibregl.FullscreenControl(), 'top-right')
     map.addControl(new ToolControl([
       { id: 'layers', title: 'Map type and layers', svg: SVG('<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>'), onClick: () => setPanel(v => !v) },
-      { id: 'measure', title: 'Measure distance', svg: SVG('<path d="M3.5 16.5l13-13 4 4-13 13z"/><path d="M7 13l1.8 1.8M9.8 10.2l1.2 1.2M12.6 7.4l1.8 1.8M15.4 4.6l1.2 1.2"/>'), onClick: () => setMeasuring(v => !v) },
+      { id: 'measure', title: 'Measure distance', svg: SVG('<path d="M3.5 16.5l13-13 4 4-13 13z"/><path d="M7 13l1.8 1.8M9.8 10.2l1.2 1.2M12.6 7.4l1.8 1.8M15.4 4.6l1.2 1.2"/>'), onClick: () => { setProbeMode(false); setMeasuring(v => !v) } },
+      ...(live.current.onProbe ? [{ id: 'probe', title: 'Probe any point with live NASA and ESA data', svg: SVG('<circle cx="12" cy="12" r="7"/><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/>'), onClick: () => { setMeasuring(false); setProbeMode(v => !v) } }] : []),
     ], tools.current), 'top-right')
     const scale = new maplibregl.ScaleControl({ maxWidth: 110, unit: live.current.prefs.units === 'mi' ? 'imperial' : 'metric' })
     map.addControl(scale, 'bottom-right')
@@ -218,22 +228,27 @@ export default function EarthMap({ selectedId, scannedIds, onSelect }: Props) {
     map.on('move', () => { const c = map.getCenter(); show(c.lat, c.lng) })
     map.on('mousemove', e => { const w = e.lngLat.wrap(); show(w.lat, w.lng) })
     map.on('click', 'sites', e => {
-      if (live.current.measuring) return
+      if (live.current.measuring || live.current.probeMode) return
       const id = e.features?.[0]?.properties?.id as string | undefined
       if (id) live.current.onSelect(id)
     })
     map.on('click', e => {
-      if (!live.current.measuring) return
       const w = e.lngLat.wrap()
+      if (live.current.probeMode) {
+        setProbeMode(false)
+        live.current.onProbe?.(w.lat, w.lng)
+        return
+      }
+      if (!live.current.measuring) return
       setPoints(p => [...p, { lat: w.lat, lon: w.lng }])
     })
-    map.on('mouseenter', 'sites', () => { if (!live.current.measuring) map.getCanvas().style.cursor = 'pointer' })
-    map.on('mouseleave', 'sites', () => { if (!live.current.measuring) map.getCanvas().style.cursor = '' })
+    map.on('mouseenter', 'sites', () => { if (!live.current.measuring && !live.current.probeMode) map.getCanvas().style.cursor = 'pointer' })
+    map.on('mouseleave', 'sites', () => { if (!live.current.measuring && !live.current.probeMode) map.getCanvas().style.cursor = '' })
 
     return () => {
       clearTimeout(timer)
-      for (const m of [lockMarker.current, pinMarker.current, skyMarks.current?.sun, skyMarks.current?.moon, ...labels.current]) m?.remove()
-      lockMarker.current = pinMarker.current = skyMarks.current = null
+      for (const m of [lockMarker.current, pinMarker.current, probeMarker.current, skyMarks.current?.sun, skyMarks.current?.moon, ...labels.current]) m?.remove()
+      lockMarker.current = pinMarker.current = probeMarker.current = skyMarks.current = null
       labels.current = []
       map.remove()
       mapRef.current = null
@@ -272,8 +287,8 @@ export default function EarthMap({ selectedId, scannedIds, onSelect }: Props) {
   useEffect(() => {
     const m = mapRef.current
     if (!m || !ready) return
-    ;(m.getSource('sites') as GeoJSONSource | undefined)?.setData(sitesData(selectedId, scannedIds))
-    const site = EARTH_SITES.find(s => s.id === selectedId)
+    ;(m.getSource('sites') as GeoJSONSource | undefined)?.setData(sitesData(sites, selectedId, scannedIds))
+    const site = sites.find(s => s.id === selectedId)
     if (!site) { lockMarker.current?.remove(); lockMarker.current = null; return }
     if (!lockMarker.current) {
       const el = document.createElement('div')
@@ -283,7 +298,33 @@ export default function EarthMap({ selectedId, scannedIds, onSelect }: Props) {
     }
     lockMarker.current.setLngLat([site.lon, site.lat]).addTo(m)
     m.easeTo({ center: [site.lon, site.lat], zoom: Math.max(m.getZoom(), 3), duration: 900 })
-  }, [selectedId, scannedIds, ready])
+  }, [selectedId, scannedIds, sites, ready])
+
+  // The side panel can arm the probe tool too
+  useEffect(() => {
+    const arm = () => { setMeasuring(false); setPlace(null); setProbeMode(true) }
+    window.addEventListener('ls-arm-probe', arm)
+    return () => window.removeEventListener('ls-arm-probe', arm)
+  }, [])
+
+  // Probe tool: crosshair cursor while armed, and a pulsing ring where a live probe is running
+  useEffect(() => {
+    const m = mapRef.current
+    tools.current.probe?.classList.toggle('is-on', probeMode)
+    if (m) m.getCanvas().style.cursor = probeMode ? 'crosshair' : ''
+  }, [probeMode, ready])
+  useEffect(() => {
+    const m = mapRef.current
+    if (!m || !ready) return
+    if (!probing) { probeMarker.current?.remove(); probeMarker.current = null; return }
+    if (!probeMarker.current) {
+      const el = document.createElement('div')
+      el.className = 'probe-ping'
+      probeMarker.current = new maplibregl.Marker({ element: el })
+    }
+    probeMarker.current.setLngLat([probing.lon, probing.lat]).addTo(m)
+    m.easeTo({ center: [probing.lon, probing.lat], zoom: Math.max(m.getZoom(), 4), duration: 900 })
+  }, [probing, ready])
 
   // Measuring: the curved line, points and a distance label on every leg
   useEffect(() => {
@@ -348,7 +389,7 @@ export default function EarthMap({ selectedId, scannedIds, onSelect }: Props) {
     else m.flyTo({ center: [h.lon, h.lat], zoom: 13, duration: 1400 })
   }
 
-  const near = place ? nearest(place, EARTH_SITES) : null
+  const near = place ? nearest(place, sites) : null
   const total = pathKm(points)
   const base = !streetsOk && prefs.base === 'map' ? 'blue' : prefs.base
   const time = sky.at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -373,14 +414,21 @@ export default function EarthMap({ selectedId, scannedIds, onSelect }: Props) {
             </div>
             {near && (
               <div>
-                <dt>Nearest Moon analog</dt>
+                <dt>Nearest listed analog</dt>
                 <dd><button className="pc-link" onClick={() => onSelect(near.item.id)}>{near.item.name}</button>, {formatDistance(near.km, prefs.units)}</dd>
               </div>
             )}
           </dl>
-          <button className="btn ghost cut small" onClick={() => { setPoints([{ lat: place.lat, lon: place.lon }]); setMeasuring(true) }}>
-            <Icon name="ruler" size={16} />Measure from here
-          </button>
+          <div className="pc-actions">
+            {onProbe && (
+              <button className="btn primary cut small" onClick={() => { const p = place; setPlace(null); onProbe(p.lat, p.lon) }}>
+                <Icon name="target" size={16} />Probe here with live data
+              </button>
+            )}
+            <button className="btn ghost cut small" onClick={() => { setPoints([{ lat: place.lat, lon: place.lon }]); setMeasuring(true) }}>
+              <Icon name="ruler" size={16} />Measure from here
+            </button>
+          </div>
         </section>
       )}
 
@@ -440,9 +488,16 @@ export default function EarthMap({ selectedId, scannedIds, onSelect }: Props) {
           <span><i className="dot known" />Known analog</span>
           <span><i className="dot candidate" />New candidate</span>
           <span><i className="dot local" />Malaysia</span>
+          <span><i className="dot discovery" />Your discoveries</span>
           <span><i className="dot scanned" />Scanned</span>
         </div>
       </div>
+      {probeMode && (
+        <p className="map-toast probe-toast" role="status">
+          <Icon name="target" size={16} />Click anywhere on land to probe it with live NASA and ESA data.
+          <button className="pc-link" onClick={() => setProbeMode(false)}>Cancel</button>
+        </p>
+      )}
       {geoError && <p className="map-toast" role="status">{geoError}</p>}
     </div>
   )

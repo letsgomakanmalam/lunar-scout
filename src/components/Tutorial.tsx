@@ -6,7 +6,7 @@ import { sfx } from '../lib/sfx'
 import { prefersReducedMotion } from '../lib/motion'
 
 const LABELS: Record<Screen, string> = {
-  title: 'Main menu', missions: 'Missions', explore: 'Explore Earth', land: 'Landing site',
+  title: 'Main menu', missions: 'Missions', explore: 'Explore Earth', twins: 'Twin finder', land: 'Landing site',
   build: 'Base', journal: 'Journal', dashboard: 'Progress', about: 'About',
 }
 

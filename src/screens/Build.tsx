@@ -1,7 +1,8 @@
 import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
 import { claimableQuests, energyNow, questContext, useGame, type BuildResult } from '../store'
 import { MODULES, moduleById } from '../data/modules'
-import { MISSIONS, targetById } from '../data/moon'
+import { MISSIONS } from '../data/missions'
+import { targetById } from '../data/targets'
 import { QUESTS, TECH, questById, questDone } from '../data/quests'
 import {
   baseScore, cellScore, crewCapacity, emptyGrid, energyCap, energyCost, energyRegenMs, goalRange, GOAL_REWARD, GRID_SIZE,
@@ -86,7 +87,7 @@ export default function Build() {
         <div className="base-empty cut">
           <Icon name="flag" size={24} />
           <h1>Your base site is waiting</h1>
-          <p>Pick a landing site on the Moon, then build your base here: habitats, solar arrays, greenhouse farms and more.</p>
+          <p>Pick a landing site on the Moon or Mars, then build your base here: habitats, solar arrays, greenhouse farms and more.</p>
           <button className="btn primary cut" onClick={() => g.go('land')}>Choose landing site</button>
         </div>
       </div>
@@ -94,6 +95,8 @@ export default function Build() {
   }
 
   const landing = targetById(g.landingId)
+  // A base on Mars always gets the Mars look; on the Moon the player can pick
+  const theme = landing.world === 'mars' ? 'mars' : g.baseTheme
   const e = energyNow(g, now)
   const cap = energyCap(g.grid)
   const period = energyRegenMs(g.grid)
@@ -139,12 +142,12 @@ export default function Build() {
   const avoids = rule ? Object.entries(rule.near ?? {}).filter(([, v]) => v! < 0) as [ModuleId, number][] : []
 
   return (
-    <div className={`base-screen theme-${g.baseTheme}`}>
+    <div className={`base-screen theme-${theme}`}>
       <div className="base-view" data-tut="grid">
         {view === '3d' ? (
           <SceneBoundary onError={() => { setView('plan'); say('The 3D view could not load. Double-click start-dev.bat (or run npm install), then reload.', 'bad') }}>
             <Suspense fallback={<div className="base-loading">Preparing the base site…</div>}>
-              <BaseScene key={g.baseTheme} theme={g.baseTheme} grid={g.grid} selected={selected} focus={focus} preview={preview} onCell={onCell}
+              <BaseScene key={theme} theme={theme} grid={g.grid} selected={selected} focus={focus} preview={preview} onCell={onCell}
                 onFail={() => { setView('plan'); say('3D is not available on this device, so here is the plan view.', 'bad') }} />
             </Suspense>
           </SceneBoundary>
@@ -179,7 +182,7 @@ export default function Build() {
           <span className="chip"><Icon name="crew" size={14} />Crew {crewCapacity(g.grid)}</span>
           <span className="chip"><Icon name="grid" size={14} />{g.grid.filter(Boolean).length}/{GRID_SIZE * GRID_SIZE}</span>
           <button className="chip chip-btn" onClick={() => setView(v => (v === '3d' ? 'plan' : '3d'))}>{view === '3d' ? '2D plan' : '3D view'}</button>
-          {view === '3d' && <button className="chip chip-btn" onClick={() => g.setBaseTheme(g.baseTheme === 'moon' ? 'cosy' : 'moon')} title="Switch how the base looks">Style: {g.baseTheme === 'moon' ? 'Moon' : 'cosy sea'}</button>}
+          {view === '3d' && landing.world === 'moon' && <button className="chip chip-btn" onClick={() => g.setBaseTheme(g.baseTheme === 'moon' ? 'cosy' : 'moon')} title="Switch how the base looks">Style: {g.baseTheme === 'moon' ? 'Moon' : 'cosy sea'}</button>}
         </section>
       </div>
 
