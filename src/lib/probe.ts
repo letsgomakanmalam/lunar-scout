@@ -203,6 +203,8 @@ export interface ProbeData {
   elevations?: number[] | null
   ndvi?: number | null
   geology?: Geology | null
+  /** Distance to the nearest town of 1,000+ people, from the global grid (GeoNames) */
+  townKm?: number | null
 }
 
 /** All 13 factors for a probed point. Anything not measured is "no data" and lowers confidence. */
@@ -215,9 +217,13 @@ export function probeFactors(lat: number, lon: number, d: ProbeData): Record<Fac
   }
   if (d.elevations) { const f = reliefFactor(d.elevations); if (f) got.roughness = f }
   if (d.ndvi != null) got.barren = ndviFactor(d.ndvi)
+  if (d.townKm != null) {
+    const v = Math.min(1, Math.max(0, Math.log(1 + d.townKm / 5) / Math.log(31)))
+    got.isolation = measured(v, `About ${d.townKm >= 510 ? '510+' : Math.round(d.townKm)} km to the nearest town of 1,000+ people (150 km = 1)`, 'geonames')
+  }
   const NONE: Partial<Record<FactorKey, [string, string]>> = {
     caves: ['Caves need a field survey', 'usgs-caves'],
-    isolation: ['Not measured live (needs the SEDAC population grid)', 'sedac-gpw'],
+    isolation: ['Remoteness grid not loaded', 'geonames'],
   }
   const out = {} as Record<FactorKey, FactorValue>
   for (const k of FACTOR_KEYS) {

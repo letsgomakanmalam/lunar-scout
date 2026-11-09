@@ -225,3 +225,4 @@ The core game loop is already running: missions, scanner with ASI, certification
 - [x] Script for real values (Task 8): `npm run measure` writes src/data/measured.json
 - [ ] Run `npm run measure` online and review the changes; review new site estimates and descriptions
 - [ ] Try live probes on the venue network; prepare a cached demo in case the Wi-Fi is down
+- [x] Global search (was the P1 "Ghost Signature" heatmap): planet-wide screening, new candidates, validation, FINDINGS.md

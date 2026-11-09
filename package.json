@@ -21,7 +21,9 @@
     "check": "npm run typecheck && npm test && npm run build",
     "sync": "node scripts/autopush.mjs",
     "live": "node scripts/livelink.mjs",
-    "measure": "vite-node scripts/measure-sites.ts"
+    "measure": "vite-node scripts/measure-sites.ts",
+    "findings": "vite-node scripts/findings.ts",
+    "grid": "python3 scripts/build-earth-grid.py"
   },
   "dependencies": {
     "maplibre-gl": "^4.7.1",

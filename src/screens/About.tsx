@@ -2,6 +2,7 @@ import { SOURCES } from '../data/sources'
 import { EARTH_SITES, MEASURED, measuredShare } from '../data/earthSites'
 import { TARGETS } from '../data/targets'
 import { FACTOR_HINTS, FACTOR_KEYS, FACTOR_LABELS, type Agency } from '../data/types'
+import { CLIMATE_ZONES } from '../data/climateZones'
 import { useGame } from '../store'
 import Icon, { type IconName } from '../components/Icon'
 import { APP_NAME } from '../brand'
@@ -15,7 +16,7 @@ const LOOP: { icon: IconName; title: string; text: string }[] = [
 
 const ANSWERS: { icon: IconName; ask: string; answer: string }[] = [
   { icon: 'target', ask: 'Permanent Moon base locations and Mars', answer: `${TARGETS.length} real targets: NASA's Moon Base on the Shackleton Connecting Ridge, Artemis III candidate regions at Malapert Massif and Mons Mouton, and a lava-tube pit on the Moon; SWIM ice regions and NASA, ESA and CNSA rover sites on Mars.` },
-  { icon: 'search', ask: 'Identify new terrestrial analogs', answer: 'A live probe characterizes any point on Earth. Probes scoring 75 or more for any target, over 200 km from listed analogs, are flagged as new analog candidates. Seven under-used candidates are already listed, including two near Malaysia.' },
+  { icon: 'search', ask: 'Identify new terrestrial analogs', answer: "The Global search screens all 91,636 land cells on Earth (0.5°) against every Moon and Mars site, ranks the best places that are not yet known analogs, and checks itself against the analogs agencies already use. One tap then probes a candidate live. FINDINGS.md lists what it found." },
   { icon: 'layers', ask: 'Characterize them', answer: 'Every site has 13 factors with the measurement, source and an estimate flag. The Analog Passport exports it all as Markdown and JSON.' },
   { icon: 'globe', ask: 'Deserts, polar regions, volcanic and arid terrain, caves and more', answer: `${EARTH_SITES.length} listed sites across desert, polar, volcanic, cave, impact, highland, water-laid and acidic environments.` },
   { icon: 'signal', ask: 'Open data from NASA and other space agencies', answer: 'NASA POWER, MODIS, LRO, SWIM, THEMIS, Curiosity and Perseverance; ESA Copernicus DEM, Mars Express and ExoMars; JAXA Kaguya; ISRO Chandrayaan-2 and HOPE; CNSA Tianwen-1 and Chang\'e 4; CSA analogue missions.' },
@@ -103,6 +104,25 @@ export default function About() {
         distance to confirmed structures, weighted by age (Earth Impact Database). Low polar Sun is computed from latitude: days a
         year when the Sun rises but stays below 7°.
       </p>
+      <h3 className="sub-h">Global search</h3>
+      <p>
+        A grid of 0.5° cells (about 55 km) covers all land. Each cell gets a Köppen-Geiger climate zone (Rubel et al., 1986–2010,
+        100 arc-second map), the distance to the nearest town of 1,000+ people (GeoNames), impact structures (Earth Impact Database),
+        young volcanoes (Smithsonian Global Volcanism Program) and salt flats and glaciers (Natural Earth). Climate zones become
+        screening proxies for dryness, cold, temperature swing, ground ice and bare ground (table below); ice sheets count as
+        ice-covered, not bare, because the Moon and Mars have exposed rock. Each cell's score is the ASI over the factors it has.
+        Candidates are the best cells at least 300 km from every listed analog and 450 km from each other. As a check, the app shows
+        where the known analogs for each site fall among all land cells: for most sites they rank in the top 10%.
+      </p>
+      <details>
+        <summary>Climate zone proxies</summary>
+        <div className="table-scroll">
+          <table className="zone-table">
+            <thead><tr><th>Zone</th><th>Climate</th><th>Dryness</th><th>Cold</th><th>Swing</th><th>Ice</th><th>Bare</th></tr></thead>
+            <tbody>{CLIMATE_ZONES.slice(1).map(z => <tr key={z.code}><th scope="row">{z.code}</th><td>{z.label}</td><td>{z.aridity}</td><td>{z.cold}</td><td>{z.thermal}</td><td>{z.ice}</td><td>{z.barren}</td></tr>)}</tbody>
+          </table>
+        </div>
+      </details>
       <h3 className="sub-h">Field campaigns</h3>
       <p>
         Coverage of a set of sites is Σ <var>weight</var> × (best similarity in the set) ÷ Σ <var>weight</var>. The planner adds,
@@ -114,7 +134,7 @@ export default function About() {
         {share > 0
           ? `${share}% of the listed site values are measured or computed${MEASURED.generated ? ` (measured on ${MEASURED.generated.slice(0, 10)})` : ''}; the rest are team estimates read from the cited datasets, and are labelled as estimates wherever they appear.`
           : 'Most listed site values are team estimates read from the cited datasets, and are labelled as estimates wherever they appear. Low polar Sun is computed. Live probes and the live data check measure values directly.'}
-        {' '}Caves and remoteness are not measured live. No place on Earth copies low gravity, vacuum or space radiation: the Twin
+        {' '}Caves are not measured live; remoteness comes from the global grid. Global search values are coarse screening proxies for a whole cell, so every candidate needs a live probe and, ideally, a field visit. No place on Earth copies low gravity, vacuum or space radiation: the Twin
         finder lists these gaps and how teams test them instead. This is an educational screening tool, not a mission-planning product.
       </p>
 

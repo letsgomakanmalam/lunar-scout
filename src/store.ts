@@ -61,6 +61,8 @@ interface GameState {
   allOpen: boolean
   /** Twin finder: the Moon or Mars site being looked at */
   twinTargetId: string
+  /** A spot the Global search asked Explore to probe live. Never saved. */
+  pendingProbe: { lat: number; lon: number; note?: string } | null
 
   go: (s: Screen) => void
   toggleMuted: () => void
@@ -72,6 +74,7 @@ interface GameState {
   removeDiscovery: (id: string) => void
   setAllOpen: (v: boolean) => void
   setTwinTarget: (id: string) => void
+  setPendingProbe: (p: { lat: number; lon: number; note?: string } | null) => void
   newGame: () => void
   startTutorial: () => void
   nextTutorialStep: () => void
@@ -124,6 +127,7 @@ const initial = {
   discoveries: [] as EarthSite[],
   allOpen: false,
   twinTargetId: 'shackleton',
+  pendingProbe: null as { lat: number; lon: number; note?: string } | null,
 }
 
 const now = () => new Date().toISOString()
@@ -213,6 +217,7 @@ export const useGame = create<GameState>()(
       },
       setAllOpen: allOpen => set({ allOpen }),
       setTwinTarget: twinTargetId => set({ twinTargetId }),
+      setPendingProbe: pendingProbe => set({ pendingProbe }),
       // Start over: progress is cleared, settings and the leaderboard stay, and the guided tutorial begins.
       newGame: () => { get().resetAll(); get().startTutorial() },
 
@@ -383,7 +388,7 @@ export const useGame = create<GameState>()(
       // Saves from before Mars: the Apollo 17 valley was the easy landing site, now the flat Mons Mouton plateau.
       migrate: (persisted, version) => migrateSave(persisted as Record<string, unknown>, version) as unknown as GameState,
       partialize: s => {
-        const { screen: _screen, selectedSiteId: _sel, myLocation: _me, ...rest } = s
+        const { screen: _screen, selectedSiteId: _sel, myLocation: _me, pendingProbe: _pp, ...rest } = s
         return rest
       },
     },

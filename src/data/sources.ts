@@ -14,6 +14,10 @@ export const SOURCES: DataSource[] = [
   { id: 'eid', name: 'Earth Impact Database (PASSC, University of New Brunswick)', agency: 'Other', url: 'http://www.passc.net/EarthImpactDatabase/' },
   { id: 'usgs-caves', name: 'USGS / NPS lava tube and cave records', agency: 'USGS', url: 'https://www.usgs.gov/' },
   { id: 'solar-geometry', name: 'Solar position equations (NOAA), computed in the app', agency: 'Other', url: 'https://gml.noaa.gov/grad/solcalc/' },
+  { id: 'koppen', name: 'Köppen-Geiger climate zones, 1986–2010, 100 arc-second map (Rubel et al.)', agency: 'Other', url: 'https://doi.org/10.1127/metz/2016/0816' },
+  { id: 'geonames', name: 'GeoNames towns of 1,000+ people (remoteness)', agency: 'Other', url: 'https://www.geonames.org/' },
+  { id: 'gvp', name: 'Smithsonian Global Volcanism Program, Holocene volcanoes', agency: 'Other', url: 'https://volcano.si.edu/' },
+  { id: 'natural-earth', name: 'Natural Earth salt flats, glaciers, regions and countries', agency: 'Other', url: 'https://www.naturalearthdata.com/' },
   { id: 'literature', name: 'Published field studies of the site (see site notes)', agency: 'Other', url: 'https://www.lpi.usra.edu/lunar/analogs/' },
 
   // Moon

@@ -19,6 +19,7 @@ import { STEPS, runProbe, type StepId, type StepState } from '../lib/probeFetch'
 import { NEW_ANALOG_ASI, NEW_ANALOG_KM, looksLikeSea, probeFactors, probeSite } from '../lib/probe'
 import { download, matchesFor, passportJson, passportMarkdown, slug } from '../lib/passport'
 import { lunarMaxSun } from '../lib/sun'
+import { cellAt, loadEarthGrid } from '../lib/earthGrid'
 import { sfx } from '../lib/sfx'
 import { prefersReducedMotion, useMedia } from '../lib/motion'
 import { APP_NAME } from '../brand'
@@ -95,20 +96,29 @@ export default function Explore() {
     if (r.stars > 0) tutorialEvent('certified')
   }
 
+  /** Distance to the nearest town of 1,000+ people from the bundled global grid (works offline). */
+  const townKmAt = async (lat: number, lon: number) => {
+    const grid = await loadEarthGrid().catch(() => null)
+    const cell = grid ? cellAt(grid, lat, lon) : -1
+    return grid && cell >= 0 ? grid.townKm[cell] : null
+  }
+
   /** Characterize any point on Earth from live open data, then add it to the map as a discovery. */
-  const startProbe = async (lat: number, lon: number) => {
+  const startProbe = async (lat: number, lon: number, note?: string) => {
     if (probe && !probe.error) return
     const id = `probe-${Date.now().toString(36)}`
     g.selectSite(null)
     setProbe({ lat, lon, steps: {} })
     sfx('scan')
-    const res = await runProbe(lat, lon, {
-      onStep: (sid, st) => setProbe(p => (p && p.lat === lat && p.lon === lon ? { ...p, steps: { ...p.steps, [sid]: st } } : p)),
-    })
+    const [res, townKm] = await Promise.all([
+      runProbe(lat, lon, { onStep: (sid, st) => setProbe(p => (p && p.lat === lat && p.lon === lon ? { ...p, steps: { ...p.steps, [sid]: st } } : p)) }),
+      townKmAt(lat, lon),
+    ])
     const fail = (error: string) => { sfx('error'); setProbe(p => (p && p.lat === lat && p.lon === lon ? { ...p, error } : p)) }
     if (!res.climate && !res.elevations && res.ndvi == null && !res.geology) return fail('No data service answered. Check the internet connection and try again.')
     if (res.elevations && looksLikeSea(res.elevations)) return fail('That point looks like open water. Probe a place on land.')
-    const found = probeSite(id, lat, lon, res.place, res)
+    const found = probeSite(id, lat, lon, res.place, { ...res, townKm })
+    if (note) found.description = `${found.description} ${note}`
     g.addDiscovery(found)
     g.selectSite(found.id)
     setProbe(null)
@@ -119,12 +129,22 @@ export default function Explore() {
     if (!site) return
     const { id, lat, lon } = site
     setCheck({ siteId: id, steps: {}, factors: null })
-    const res = await runProbe(lat, lon, {
-      skipPlace: true,
-      onStep: (sid, st) => setCheck(c => (c && c.siteId === id ? { ...c, steps: { ...c.steps, [sid]: st } } : c)),
-    })
-    setCheck(c => (c && c.siteId === id ? { ...c, factors: probeFactors(lat, lon, res) } : c))
+    const [res, townKm] = await Promise.all([
+      runProbe(lat, lon, { skipPlace: true, onStep: (sid, st) => setCheck(c => (c && c.siteId === id ? { ...c, steps: { ...c.steps, [sid]: st } } : c)) }),
+      townKmAt(lat, lon),
+    ])
+    setCheck(c => (c && c.siteId === id ? { ...c, factors: probeFactors(lat, lon, { ...res, townKm }) } : c))
   }
+
+  // The Twin finder's Global search can hand over a spot to probe as soon as this screen opens
+  const handoff = useRef(false)
+  useEffect(() => {
+    const p = g.pendingProbe
+    if (!p || handoff.current) return
+    handoff.current = true
+    g.setPendingProbe(null)
+    void startProbe(p.lat, p.lon, p.note)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const armProbe = () => {
     window.dispatchEvent(new Event('ls-arm-probe'))

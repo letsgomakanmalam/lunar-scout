@@ -11,6 +11,7 @@ import { distanceKm, formatDistance } from '../lib/geo'
 import { fmtCoords } from '../lib/format'
 import MoonGlobe from '../components/MoonGlobe'
 import LightCalendar from '../components/LightCalendar'
+import GlobalSearch from '../components/GlobalSearch'
 import Icon from '../components/Icon'
 import { useMedia } from '../lib/motion'
 import { APP_NAME } from '../brand'
@@ -27,7 +28,8 @@ export default function Twins() {
   const g = useGame()
   const compact = useMedia('(max-width: 899px)')
   const t = TARGETS.find(x => x.id === g.twinTargetId) ?? targetById('shackleton')
-  const sites = allSites(g)
+  const discoveries = g.discoveries
+  const sites = useMemo(() => allSites({ discoveries }), [discoveries])
   const twins = useMemo(() => rankTwins(t, sites), [t, sites])
   const plan = useMemo(() => planCampaign(t, sites, 3), [t, sites])
   const polar = t.world === 'moon' && (t.factors.lowsun ?? 0) >= 0.5
@@ -105,6 +107,11 @@ export default function Twins() {
           </ol>
         </section>
       </div>
+
+      <section className="panel cut global-panel" aria-labelledby="global-h">
+        <h2 id="global-h"><Icon name="globe" size={20} />Search the whole planet for new analogs</h2>
+        <GlobalSearch target={t} sites={sites} onProbe={(lat, lon, note) => { g.setPendingProbe({ lat, lon, note }); g.go('explore') }} />
+      </section>
 
       <section className="panel campaign-plan cut" aria-labelledby="plan-h">
         <h2 id="plan-h">Best three-site field campaign</h2>

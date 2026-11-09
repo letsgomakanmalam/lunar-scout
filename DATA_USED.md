@@ -30,6 +30,15 @@ Every source below is also listed, with links, on the About screen and in each d
 - NOAA solar position equations, used to compute the low polar Sun factor and the light calendar
 - Published field studies for individual sites (named in each site's notes)
 
+## Global search grid (public/data/earth-grid.*)
+| Dataset | Used for | Licence and credit |
+|---|---|---|
+| Köppen-Geiger climate classification, 1986–2010, 100 arc-second map (Rubel et al.; via the kgcpy package) | Climate-zone proxies for dryness, cold, temperature swing, ground ice, bare ground | Credit Rubel, Brugger, Haslinger and Auer (2017), doi:10.1127/metz/2016/0816; koeppen-geiger.vu-wien.ac.at |
+| GeoNames cities1000 (via the geonamescache package) | Distance to the nearest town of 1,000+ people (remoteness), also used by live probes | CC BY 4.0, GeoNames |
+| Smithsonian Global Volcanism Program volcano list (copy in plotly/datasets) | Young volcanoes near each cell (volcanic rock proxy) | Smithsonian GVP; check the current list at volcano.si.edu |
+| Earth Impact Database list (85 structures with coordinates, in the app) | Impact structures in or near each cell | PASSC, University of New Brunswick |
+| Natural Earth 10m playas, glaciated areas, geography regions; 50m countries | Salt flats, glaciers, region and country names | Public domain, naturalearthdata.com |
+
 ## Live probe services
 | Service | What it gives the probe | Notes |
 |---|---|---|
