@@ -10,7 +10,13 @@
  *   3. NASA's Blue Marble, dimmed, where there is no recent picture at all (polar night).
  *
  * The same rule applies whether one pixel or a whole tile is missing, so there are no seams along
- * tile edges. Tiles are composited in the browser through a MapLibre custom protocol.
+ * tile edges. Tiles are composited in the browser through MapLibre custom protocols.
+ *
+ * "Live Earth" goes further: three geostationary weather satellites photograph their half of the
+ * planet every 10 minutes (NOAA's GOES-East and GOES-West, JMA's Himawari, served by NASA GIBS).
+ * Their infrared pictures, which work day and night, become a live cloud layer over a cloud-free
+ * Blue Marble ground. Europe, Africa and the poles have no geostationary picture in GIBS, so there the
+ * ground blends smoothly into the newest daily picture instead.
  */
 import maplibregl from 'maplibre-gl'
 
@@ -106,6 +112,78 @@ export function ancestor(z: number, y: number, x: number, maxZ: number) {
   return { z: z - dz, y: y >> dz, x: x >> dz, sx: (x % n) * size, sy: (y % n) * size, size }
 }
 
+
+/* ---------- Live Earth: geostationary satellites ---------- */
+
+/** Sub-satellite longitudes: NOAA GOES-East (75.2°W), GOES-West (137.2°W), JMA Himawari (140.7°E). */
+export const GEO_SATS = [
+  { id: 'GOES-East_ABI_Band13_Clean_Infrared', name: 'GOES-East', lon: -75.2 },
+  { id: 'GOES-West_ABI_Band13_Clean_Infrared', name: 'GOES-West', lon: -137.2 },
+  { id: 'Himawari_AHI_Band13_Clean_Infrared', name: 'Himawari', lon: 140.7 },
+] as const
+
+/** Live pictures appear within about 20 minutes; aim 30 minutes back so the newest picture is normally ready. */
+export const CLOUD_DELAY_MIN = 30
+
+/** The newest 10-minute picture time that should exist, as GIBS writes it: 2026-11-10T00:40:00Z. */
+export function cloudStamp(now: Date = new Date(), stepsBack = 0): string {
+  const step = 10 * 60e3
+  const t = Math.floor((now.getTime() - CLOUD_DELAY_MIN * 60e3) / step) * step - stepsBack * step
+  return new Date(t).toISOString().slice(0, 19) + 'Z'
+}
+
+export const nowTileUrl = (date: string, refresh = '') => `livenow://${date}/{z}/{y}/{x}${refresh ? `?r=${refresh}` : ''}`
+export const cloudTileUrl = (time: string) => `liveclouds://${time}/{z}/{y}/{x}`
+
+const RAD = Math.PI / 180
+const smooth = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t) }
+
+/** Angle (degrees) between a place and the point under a geostationary satellite. */
+export const viewAngle = (lat: number, lon: number, satLon: number) => Math.acos(Math.max(-1, Math.min(1, Math.cos(lat * RAD) * Math.cos((lon - satLon) * RAD)))) / RAD
+
+/** 1 where a geostationary satellite sees a place well, fading to 0 towards the edge of its disk. */
+export function geoWeight(lat: number, lon: number): number {
+  let best = 0
+  for (const s of GEO_SATS) best = Math.max(best, 1 - smooth(58, 70, viewAngle(lat, lon, s.lon)))
+  return best
+}
+
+/** Longitude and latitude of a pixel centre in a Web Mercator tile. */
+export function pixelLonLat(z: number, x: number, y: number, px: number, py: number) {
+  const n = 256 * 2 ** z
+  const lon = ((x * 256 + px + 0.5) / n) * 360 - 180
+  const lat = Math.atan(Math.sinh(Math.PI * (1 - (2 * (y * 256 + py + 0.5)) / n))) / RAD
+  return { lon, lat }
+}
+
+/** Cold cloud tops look bright in infrared; warm ground looks dark. Below LO is clear, above HI is solid cloud. */
+export const IR_LO = 95, IR_HI = 215
+
+/** Turns an infrared tile into white clouds on transparency, weighted by how well the satellite sees each pixel. */
+export function irToCloud(ir: Uint8ClampedArray, out: Uint8ClampedArray, weight?: Float32Array): void {
+  for (let i = 0, p = 0; i < ir.length; i += 4, p++) {
+    const a = ir[i + 3]
+    if (!a) continue
+    const c = Math.min(1, Math.max(0, (Math.max(ir[i], ir[i + 1], ir[i + 2]) - IR_LO) / (IR_HI - IR_LO)))
+    const alpha = 255 * Math.pow(c, 1.3) * 0.92 * (a / 255) * (weight ? weight[p] : 1)
+    if (alpha <= out[i + 3]) continue // keep the clearer view where two satellites overlap
+    out[i] = 246; out[i + 1] = 248; out[i + 2] = 252; out[i + 3] = alpha
+  }
+}
+
+/** Per-pixel view weight of one satellite over a tile (1 = straight down, 0 = beyond its edge). */
+function satWeights(z: number, x: number, y: number, satLon: number): Float32Array {
+  const w = new Float32Array(256 * 256)
+  const cosLat = new Float32Array(256), cosLon = new Float32Array(256)
+  for (let py = 0; py < 256; py++) cosLat[py] = Math.cos(pixelLonLat(z, x, y, 0, py).lat * RAD)
+  for (let px = 0; px < 256; px++) cosLon[px] = Math.cos((pixelLonLat(z, x, y, px, 0).lon - satLon) * RAD)
+  for (let py = 0; py < 256; py++) for (let px = 0; px < 256; px++) {
+    const d = Math.acos(Math.max(-1, Math.min(1, cosLat[py] * cosLon[px]))) / RAD
+    w[py * 256 + px] = 1 - smooth(58, 70, d)
+  }
+  return w
+}
+
 type Canvas = OffscreenCanvas | HTMLCanvasElement
 type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D
 const makeCanvas = (): Canvas => {
@@ -114,9 +192,9 @@ const makeCanvas = (): Canvas => {
   c.width = c.height = 256
   return c
 }
-const toBytes = async (c: Canvas): Promise<ArrayBuffer> => {
-  if ('convertToBlob' in c) return (await c.convertToBlob({ type: 'image/jpeg', quality: 0.9 })).arrayBuffer()
-  const blob = await new Promise<Blob | null>(res => (c as HTMLCanvasElement).toBlob(res, 'image/jpeg', 0.9))
+const toBytes = async (c: Canvas, type = 'image/jpeg'): Promise<ArrayBuffer> => {
+  if ('convertToBlob' in c) return (await c.convertToBlob({ type, quality: 0.9 })).arrayBuffer()
+  const blob = await new Promise<Blob | null>(res => (c as HTMLCanvasElement).toBlob(res, type, 0.9))
   if (!blob) throw new Error('Could not encode tile')
   return blob.arrayBuffer()
 }
@@ -131,21 +209,38 @@ async function bitmap(url: string, signal: AbortSignal, fresh = false): Promise<
     return null
   }
 }
+const parse = (scheme: string, url: string) => {
+  const m = new RegExp(`^${scheme}://([^/]+)/(\\d+)/(\\d+)/(\\d+)`).exec(url)
+  if (!m) throw new Error(`Bad tile address: ${url}`)
+  return { key: m[1], z: Number(m[2]), y: Number(m[3]), x: Number(m[4]) }
+}
+
+type Urls = {
+  live: (date: string, z: number, y: number, x: number) => string
+  backup: (z: number, y: number, x: number) => string
+  geo: (layer: string, time: string, matrixSet: string, z: number, y: number, x: number) => string
+}
 
 let installed = false
+/** Which GIBS tile matrix set works for each geostationary layer (2 km layers: Level 6; tried in order). */
+const MATRIX_SETS = ['GoogleMapsCompatible_Level6', 'GoogleMapsCompatible_Level7']
+type Found = { set: string; time: string }
+/** Per asked-for picture time: which tile matrix set and picture time work for each satellite (probed once). */
+const probes = new Map<string, Promise<Record<string, Found | null>>>()
 
-/**
- * Registers the `livefill://date/z/y/x` protocol once. live(date, z, y, x) and backup(z, y, x)
- * give the real tile URLs; backupMaxZoom is the backup's deepest level.
- */
-export function installLiveProtocol(live: (date: string, z: number, y: number, x: number) => string, backup: (z: number, y: number, x: number) => string, backupMaxZoom = 8) {
+/** A picture time n ten-minute steps earlier. */
+export const stepBack = (time: string, n: number) => new Date(Date.parse(time) - n * 600e3).toISOString().slice(0, 19) + 'Z'
+
+/** Lets the map know whether live clouds are arriving, and from which picture time. */
+export const CLOUD_EVENT = 'ls-clouds'
+const report = (ok: boolean, time?: string) => { if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(CLOUD_EVENT, { detail: { ok, time } })) }
+
+/** Registers the livefill://, livenow:// and liveclouds:// protocols once. */
+export function installLiveProtocol(urls: Urls, backupMaxZoom = 8) {
   if (installed) return
   installed = true
-  maplibregl.addProtocol(PROTOCOL, async (params, abort) => {
-    const m = /^livefill:\/\/(\d{4}-\d{2}-\d{2})\/(\d+)\/(\d+)\/(\d+)/.exec(params.url)
-    if (!m) throw new Error(`Bad live tile address: ${params.url}`)
-    const [, date, zs, ys, xs] = m
-    const z = Number(zs), y = Number(ys), x = Number(xs)
+
+  const canvases = () => {
     const c = makeCanvas(), scratch = makeCanvas()
     const ctx = c.getContext('2d') as Ctx | null, sctx = scratch.getContext('2d') as Ctx | null
     if (!ctx || !sctx) throw new Error('No 2D canvas')
@@ -155,29 +250,135 @@ export function installLiveProtocol(live: (date: string, z: number, y: number, x
       else sctx.drawImage(img, 0, 0, 256, 256)
       return sctx.getImageData(0, 0, 256, 256).data
     }
+    return { c, ctx, read }
+  }
+
+  /** Newest daily picture for a tile: today, the days before, then dimmed Blue Marble. */
+  async function daily(date: string, z: number, y: number, x: number, signal: AbortSignal, read: (img: ImageBitmap, crop?: { sx: number; sy: number; size: number }) => Uint8ClampedArray, ctx: Ctx) {
     let out: ImageData | null = null
     let missing = 256 * 256
     const add = (px: Uint8ClampedArray, dim = 1) => {
-      if (!out) { out = ctx.createImageData(256, 256) } // starts all "no data"
+      if (!out) out = ctx.createImageData(256, 256) // starts all "no data"
       missing = fillFrom(out.data, px, dim)
     }
-
-    // Newest first: today (fresh) and yesterday together, then older days only while gaps remain
     const days = Array.from({ length: LOOKBACK + 1 }, (_, i) => dayBefore(date, i))
-    const first = await Promise.all(days.slice(0, 2).map((d, i) => bitmap(live(d, z, y, x), abort.signal, i === 0)))
+    const first = await Promise.all(days.slice(0, 2).map((d, i) => bitmap(urls.live(d, z, y, x), signal, i === 0)))
     for (const img of first) if (img && missing) add(read(img))
     for (const d of days.slice(2)) {
       if (!missing) break
-      const img = await bitmap(live(d, z, y, x), abort.signal)
+      const img = await bitmap(urls.live(d, z, y, x), signal)
       if (img) add(read(img))
     }
     if (missing) {
       const a = ancestor(z, y, x, backupMaxZoom)
-      const img = await bitmap(backup(a.z, a.y, a.x), abort.signal)
+      const img = await bitmap(urls.backup(a.z, a.y, a.x), signal)
       if (img) add(read(img, a), BACKUP_DIM)
     }
+    return out as ImageData | null
+  }
+
+  maplibregl.addProtocol(PROTOCOL, async (params, abort) => {
+    const { key: date, z, y, x } = parse(PROTOCOL, params.url)
+    const { c, ctx, read } = canvases()
+    const out = await daily(date, z, y, x, abort.signal, read, ctx)
     if (!out) throw new Error('No imagery for this tile')
     ctx.putImageData(out, 0, 0)
     return { data: await toBytes(c) }
+  })
+
+  // Live Earth ground: cloud-free Blue Marble where a geostationary satellite supplies live clouds,
+  // blending into the newest daily picture where none does (Europe, Africa, the poles).
+  maplibregl.addProtocol('livenow', async (params, abort) => {
+    const { key: date, z, y, x } = parse('livenow', params.url)
+    const { c, ctx, read } = canvases()
+    const w = new Float32Array(256 * 256)
+    let lo = 1, hi = 0
+    for (let py = 0; py < 256; py++) for (let px = 0; px < 256; px++) {
+      const { lat, lon } = pixelLonLat(z, x, y, px, py)
+      const v = geoWeight(lat, lon)
+      w[py * 256 + px] = v
+      if (v < lo) lo = v
+      if (v > hi) hi = v
+    }
+    const a = ancestor(z, y, x, backupMaxZoom)
+    const ground = hi > 0.001 ? await bitmap(urls.backup(a.z, a.y, a.x), abort.signal) : null
+    const groundPx = ground ? read(ground, a) : null
+    if (groundPx && lo >= 0.999) {
+      ctx.putImageData(new ImageData(new Uint8ClampedArray(groundPx), 256, 256), 0, 0)
+      return { data: await toBytes(c) }
+    }
+    const day = await daily(date, z, y, x, abort.signal, read, ctx)
+    if (!day && !groundPx) throw new Error('No imagery for this tile')
+    const out = day ?? new ImageData(new Uint8ClampedArray(groundPx!), 256, 256)
+    if (day && groundPx) {
+      const d = out.data
+      for (let i = 0, p = 0; i < d.length; i += 4, p++) {
+        const k = w[p]
+        if (k <= 0) continue
+        d[i] = d[i] * (1 - k) + groundPx[i] * k
+        d[i + 1] = d[i + 1] * (1 - k) + groundPx[i + 1] * k
+        d[i + 2] = d[i + 2] * (1 - k) + groundPx[i + 2] * k
+        d[i + 3] = 255
+      }
+    }
+    ctx.putImageData(out, 0, 0)
+    return { data: await toBytes(c) }
+  })
+
+  /**
+   * Finds, once per 10-minute picture, which tile matrix set and picture time each satellite has:
+   * the newest picture can be late, so it steps back 10 and then 20 minutes. One small world tile each.
+   */
+  const probe = (time: string) => {
+    let job = probes.get(time)
+    if (!job) {
+      job = Promise.all(GEO_SATS.map(async s => {
+        for (const t of [time, stepBack(time, 1), stepBack(time, 2)]) {
+          for (const set of MATRIX_SETS) {
+            const ok = await bitmap(urls.geo(s.id, t, set, 0, 0, 0), new AbortController().signal).catch(() => null)
+            if (ok) return [s.id, { set, time: t }] as const
+          }
+        }
+        return [s.id, null] as const
+      })).then(rows => Object.fromEntries(rows))
+      probes.set(time, job)
+      if (probes.size > 4) probes.delete(probes.keys().next().value!) // keep the last few
+    }
+    return job
+  }
+
+  // Live clouds: each geostationary satellite's infrared picture as white cloud on transparency.
+  maplibregl.addProtocol('liveclouds', async (params, abort) => {
+    const { key: time, z, y, x } = parse('liveclouds', params.url)
+    const { c, ctx, read } = canvases()
+    // Satellites that can see some of this tile
+    const corners = [[0, 0], [255, 0], [0, 255], [255, 255], [128, 128]].map(([px, py]) => pixelLonLat(z, x, y, px, py))
+    const sats = GEO_SATS.filter(s => corners.some(p => viewAngle(p.lat, p.lon, s.lon) < 72))
+    const out = ctx.createImageData(256, 256)
+    const found = sats.length ? await probe(time) : {}
+    const gz = Math.min(z, 6), dz = Math.max(0, z - 6)
+    const imgs = await Promise.all(sats.map(s => {
+      const f = found[s.id]
+      return f ? bitmap(urls.geo(s.id, f.time, f.set, gz, y >> dz, x >> dz), abort.signal) : Promise.resolve(null)
+    }))
+    let got = 0, newest = ''
+    sats.forEach((s, i) => {
+      const img = imgs[i]
+      if (!img) return
+      got++
+      const t = found[s.id]!.time
+      if (t > newest) newest = t
+      const crop = dz ? { sx: (x % (1 << dz)) * (256 >> dz), sy: (y % (1 << dz)) * (256 >> dz), size: 256 >> dz } : undefined
+      irToCloud(read(img, crop), out.data, satWeights(z, x, y, s.lon))
+    })
+    if (sats.length) report(got > 0, newest || time)
+    // Add ?lsdebug to the page address to inspect cloud tiles in the console (window.__lsClouds)
+    if (typeof location !== 'undefined' && location.search.includes('lsdebug')) {
+      let sum = 0
+      for (let i = 3; i < out.data.length; i += 4) sum += out.data[i]
+      ;((window as unknown as { __lsClouds?: unknown[] }).__lsClouds ??= []).push({ z, x, y, sats: sats.map(s => s.name), got, alpha: Math.round(sum / 255) })
+    }
+    ctx.putImageData(out, 0, 0)
+    return { data: await toBytes(c, 'image/png') }
   })
 }

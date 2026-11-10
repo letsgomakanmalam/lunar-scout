@@ -11,7 +11,7 @@ import { QUESTS, questById, questDone, techFor, type QuestCtx } from './data/que
 import { TUTORIAL, type TutEvent } from './data/tutorial'
 import type { LatLon, Units } from './lib/geo'
 
-export type MapBase = 'live' | 'satellite' | 'map' | 'blue'
+export type MapBase = 'live' | 'satellite' | 'map' | 'blue' | 'daily'
 export interface MapPrefs { base: MapBase; labels: boolean; dayNight: boolean; sky: boolean; units: Units }
 const DEFAULT_MAP: MapPrefs = { base: 'live', labels: true, dayNight: true, sky: true, units: 'km' }
 

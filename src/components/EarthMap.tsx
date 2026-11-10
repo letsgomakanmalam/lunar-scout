@@ -5,7 +5,7 @@ import type { EarthSite } from '../data/types'
 import { useGame, type MapBase, type MapPrefs } from '../store'
 import { distanceKm, formatDistance, greatCircle, nearest, pathKm, unwrapLon, type LatLon, type PlaceHit } from '../lib/geo'
 import { nightBands, skyAt, type SkyNow } from '../lib/sky'
-import { installLiveProtocol, liveStamp, liveTileUrl } from '../lib/liveTiles'
+import { CLOUD_EVENT, cloudStamp, cloudTileUrl, installLiveProtocol, liveStamp, liveTileUrl, nowTileUrl } from '../lib/liveTiles'
 import { fmtCoords, fmtLat, fmtLon } from '../lib/format'
 import MapSearch from './MapSearch'
 import Icon from './Icon'
@@ -27,13 +27,15 @@ interface Props {
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
 const FALLBACK: StyleSpecification = { version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#02040a' } }] }
 const BLUE = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg'
+const GEO = (layer: string, time: string, set: string, z: number, y: number, x: number) => `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer}/default/${time}/${set}/${z}/${y}/${x}.png`
 const VIIRS = (date: string) => `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_NOAA20_CorrectedReflectance_TrueColor/default/${date}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`
 const S2 = 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg'
-const OWN = new Set(['ls-blue', 'ls-s2', 'ls-today', 'ls-night', 'ls-measure-line', 'ls-measure-pts', 'sites-glow', 'sites'])
+const OWN = new Set(['ls-blue', 'ls-s2', 'ls-today', 'ls-now', 'ls-clouds', 'ls-night', 'ls-measure-line', 'ls-measure-pts', 'sites-glow', 'sites'])
 const STATUS_COLOR = ['match', ['get', 'status'], 'candidate', '#e9b24c', 'local', '#ff7ab8', 'discovery', '#4fe3d0', '#ebe6da'] as unknown as string
 
 export const BASES: { id: MapBase; label: string; note: (date: string) => string }[] = [
-  { id: 'live', label: 'Live Earth', note: d => `NASA satellite, ${d}` },
+  { id: 'live', label: 'Live Earth', note: () => 'Clouds every 10 minutes' },
+  { id: 'daily', label: 'Daily satellite', note: d => `NASA VIIRS, ${d}` },
   { id: 'satellite', label: 'Satellite', note: () => 'Sentinel-2, 10 m detail' },
   { id: 'map', label: 'Map', note: () => 'Streets and places' },
   { id: 'blue', label: 'Blue Marble', note: () => 'NASA classic' },
@@ -77,7 +79,7 @@ function sitesData(sites: EarthSite[], selectedId: string | null, scannedIds: st
 }
 
 /** Adds our imagery, night, measuring and site layers to whichever style is loaded. */
-function install(map: MLMap, date: string, liveUrl: string) {
+function install(map: MLMap, date: string, liveUrl: string, nowUrl: string, cloudUrl: string) {
   if (map.getSource('sites')) return
   const layers = map.getStyle().layers
   const aboveBackground = layers.find(l => l.type !== 'background')?.id
@@ -86,11 +88,16 @@ function install(map: MLMap, date: string, liveUrl: string) {
   map.addSource('ls-s2', { type: 'raster', tiles: [S2], tileSize: 256, maxzoom: 14, attribution: '<a href="https://s2maps.eu">Sentinel-2 cloudless</a> by EOX IT Services GmbH (contains modified Copernicus Sentinel data 2024)' })
   // Composited in the browser: the daily picture over a dimmed Blue Marble wherever it has no data (lib/liveTiles.ts)
   map.addSource('ls-today', { type: 'raster', tiles: [liveUrl], tileSize: 256, maxzoom: 9, attribution: `NASA GIBS, VIIRS NOAA-20 (newest up to ${date}); no-data areas from Blue Marble` })
+  // Live Earth: cloud-free ground plus clouds from three geostationary satellites, every 10 minutes
+  map.addSource('ls-now', { type: 'raster', tiles: [nowUrl], tileSize: 256, maxzoom: 8, attribution: 'NASA GIBS Blue Marble and VIIRS' })
+  map.addSource('ls-clouds', { type: 'raster', tiles: [cloudUrl], tileSize: 256, maxzoom: 7, attribution: 'Live clouds: NOAA GOES-East, GOES-West and JMA Himawari infrared via NASA GIBS' })
   const hidden = { visibility: 'none' as const }
   map.addLayer({ id: 'ls-blue', type: 'raster', source: 'ls-blue', layout: hidden }, aboveBackground)
   map.addLayer({ id: 'ls-s2', type: 'raster', source: 'ls-s2', layout: hidden }, aboveBackground)
   // Today's NASA picture covers the globe; it fades into sharper Sentinel-2 detail as you zoom in.
   map.addLayer({ id: 'ls-today', type: 'raster', source: 'ls-today', layout: hidden, paint: { 'raster-opacity': ['interpolate', ['linear'], ['zoom'], 5, 1, 8, 0] } }, aboveBackground)
+  map.addLayer({ id: 'ls-now', type: 'raster', source: 'ls-now', layout: hidden, paint: { 'raster-opacity': ['interpolate', ['linear'], ['zoom'], 5, 1, 8, 0] } }, aboveBackground)
+  map.addLayer({ id: 'ls-clouds', type: 'raster', source: 'ls-clouds', layout: hidden, paint: { 'raster-opacity': ['interpolate', ['linear'], ['zoom'], 6, 0.95, 9, 0], 'raster-fade-duration': 600 } }, aboveBackground)
   map.addSource('ls-night', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
   map.addLayer({ id: 'ls-night', type: 'fill', source: 'ls-night', paint: { 'fill-color': '#01030a', 'fill-opacity': 0.2 } }, belowLabels)
   map.addSource('ls-measure', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
@@ -114,8 +121,13 @@ function apply(map: MLMap, p: MapPrefs, streetsOk: boolean) {
   const imagery = base !== 'map'
   const vis = (id: string, on: boolean) => { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none') }
   vis('ls-blue', base === 'blue')
-  vis('ls-s2', base === 'satellite' || base === 'live')
-  vis('ls-today', base === 'live')
+  vis('ls-s2', base === 'satellite' || base === 'live' || base === 'daily')
+  vis('ls-today', base === 'daily')
+  vis('ls-now', base === 'live')
+  vis('ls-clouds', base === 'live')
+  // Under Live Earth and Daily satellite, Sentinel-2 only shows once zoomed in: don't load it before then,
+  // or its tiles take up the browser's image slots that the live layers need
+  if (map.getLayer('ls-s2')) map.setLayerZoomRange('ls-s2', base === 'satellite' ? 0 : 4.5, 24)
   for (const l of map.getStyle().layers) {
     if (OWN.has(l.id)) continue
     if (l.type === 'symbol') vis(l.id, p.labels)
@@ -177,6 +189,11 @@ export default function EarthMap({ selectedId, scannedIds, onSelect, sites = EAR
   const date = stamp.date
   const liveUrl = liveTileUrl(stamp.date, stamp.refresh)
   const appliedLive = useRef(liveUrl)
+  // Live clouds: the newest 10-minute picture, checked against the computer's clock every minute
+  const [cloudTime, setCloudTime] = useState(() => cloudStamp())
+  const cloudUrl = cloudTileUrl(cloudTime)
+  const appliedClouds = useRef(cloudUrl)
+  const [clouds, setClouds] = useState<{ ok: boolean; time?: string } | null>(null)
   const dateLabel = useMemo(() => new Date(`${date}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }), [date])
 
   const live = useRef({ selectedId, scannedIds, onSelect, measuring, prefs, sky, sites, probeMode, onProbe })
@@ -185,7 +202,7 @@ export default function EarthMap({ selectedId, scannedIds, onSelect, sites = EAR
   useEffect(() => {
     if (!box.current) return
     let map: MLMap
-    installLiveProtocol((d, z, y, x) => tile(VIIRS(d), z, y, x), (z, y, x) => tile(BLUE, z, y, x))
+    installLiveProtocol({ live: (d, z, y, x) => tile(VIIRS(d), z, y, x), backup: (z, y, x) => tile(BLUE, z, y, x), geo: GEO })
     try {
       map = new maplibregl.Map({
         container: box.current, style: STYLE_URL, center: [20, 20], zoom: 1.2, maxZoom: 18,
@@ -197,6 +214,7 @@ export default function EarthMap({ selectedId, scannedIds, onSelect, sites = EAR
       return
     }
     mapRef.current = map
+    if (location.search.includes('lsdebug')) (window as unknown as { __lsMap?: MLMap }).__lsMap = map
     // Never zoom out so far that several Earths sit side by side: one Earth always fills the width
     const fitWorld = () => map.setMinZoom(Math.max(0, Math.log2((box.current?.clientWidth || 512) / 512)))
     fitWorld()
@@ -219,7 +237,7 @@ export default function EarthMap({ selectedId, scannedIds, onSelect, sites = EAR
     map.on('style.load', () => {
       styled = true
       clearTimeout(timer)
-      install(map, date, appliedLive.current)
+      install(map, date, appliedLive.current, nowTileUrl(date, appliedLive.current.split('?r=')[1] ?? ''), appliedClouds.current)
       const L = live.current
       ;(map.getSource('sites') as GeoJSONSource).setData(sitesData(L.sites, L.selectedId, L.scannedIds))
       ;(map.getSource('ls-night') as GeoJSONSource).setData(nightBands(L.sky.sun))
@@ -292,7 +310,7 @@ export default function EarthMap({ selectedId, scannedIds, onSelect, sites = EAR
 
   // Live sky: recompute every minute
   useEffect(() => {
-    const id = setInterval(() => { const now = new Date(); setSky(skyAt(now)); const k = liveStamp(now); setStamp(p => (p.refresh === k.refresh ? p : k)) }, 60000)
+    const id = setInterval(() => { const now = new Date(); setSky(skyAt(now)); const k = liveStamp(now); setStamp(p => (p.refresh === k.refresh ? p : k)); setCloudTime(cloudStamp(now)) }, 60000)
     return () => clearInterval(id)
   }, [])
   useEffect(() => {
@@ -318,7 +336,23 @@ export default function EarthMap({ selectedId, scannedIds, onSelect, sites = EAR
     if (!m || !ready || appliedLive.current === liveUrl) return
     appliedLive.current = liveUrl
     ;(m.getSource('ls-today') as RasterTileSource | undefined)?.setTiles([liveUrl])
-  }, [liveUrl, ready])
+    ;(m.getSource('ls-now') as RasterTileSource | undefined)?.setTiles([nowTileUrl(stamp.date, stamp.refresh)])
+  }, [liveUrl, ready, stamp])
+  // A new cloud picture every 10 minutes
+  useEffect(() => {
+    const m = mapRef.current
+    if (!m || !ready || appliedClouds.current === cloudUrl) return
+    appliedClouds.current = cloudUrl
+    ;(m.getSource('ls-clouds') as RasterTileSource | undefined)?.setTiles([cloudUrl])
+  }, [cloudUrl, ready])
+  useEffect(() => {
+    const on = (e: Event) => {
+      const d = (e as CustomEvent<{ ok: boolean; time?: string }>).detail
+      setClouds(p => (p?.ok && !d.ok ? p : d)) // one picture arriving is enough to call it live
+    }
+    window.addEventListener(CLOUD_EVENT, on)
+    return () => window.removeEventListener(CLOUD_EVENT, on)
+  }, [])
 
   // Analog sites and the lock-on reticle
   useEffect(() => {
@@ -517,8 +551,12 @@ export default function EarthMap({ selectedId, scannedIds, onSelect, sites = EAR
       )}
 
       <div className="map-foot" aria-hidden="true">
-        {(base === 'live' || prefs.dayNight) && (
-          <span className="map-live" title={base === 'live' ? `NASA VIIRS pictures for your computer's date, ${dateLabel}, refreshed every hour. Places today's orbits have not reached yet come from the two days before; where there is no recent picture at all, such as polar night, NASA's Blue Marble shows through, dimmed.` : undefined}><span className="dot" />{base === 'live' ? `Live satellite, ${dateLabel} · ${time}` : `Live day and night, ${time}`}</span>
+        {(base === 'live' || base === 'daily' || prefs.dayNight) && (
+          <span className="map-live" title={base === 'live'
+            ? `Clouds from NOAA GOES-East, GOES-West and JMA Himawari infrared pictures (via NASA GIBS), refreshed every 10 minutes by your computer's clock, over a cloud-free Blue Marble. Europe, Africa and the poles have no geostationary picture here, so they show NASA's newest daily picture.`
+            : base === 'daily' ? `NASA VIIRS pictures for your computer's date, ${dateLabel}, refreshed every hour. Places today's orbits have not reached yet come from the two days before; where there is no recent picture at all, such as polar night, NASA's Blue Marble shows through, dimmed.` : undefined}><span className="dot" />{base === 'live'
+              ? (clouds?.ok && clouds.time ? `Live Earth, clouds at ${new Date(clouds.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · now ${time}` : clouds && !clouds.ok ? `Live Earth, no cloud picture yet · ${time}` : `Live Earth · ${time}`)
+              : base === 'daily' ? `Daily satellite, ${dateLabel} · ${time}` : `Live day and night, ${time}`}</span>
         )}
         <span className="map-readout" ref={readout}>20.00° N   20.00° E   zoom 1.2</span>
         <div className="legend">

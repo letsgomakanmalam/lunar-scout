@@ -36,3 +36,43 @@ describe('live satellite tiles', () => {
     expect(ancestor(9, 5, 3, 8)).toEqual({ z: 8, y: 2, x: 1, sx: 128, sy: 128, size: 128 })
   })
 })
+
+import { cloudStamp, cloudTileUrl, geoWeight, irToCloud, nowTileUrl, pixelLonLat, stepBack, viewAngle } from './liveTiles'
+
+describe('live clouds', () => {
+  it('asks for the newest 10-minute picture that should exist, about 30 minutes back', () => {
+    expect(cloudStamp(new Date('2026-11-10T00:30:00Z'))).toBe('2026-11-10T00:00:00Z')
+    expect(cloudStamp(new Date('2026-11-10T00:39:59Z'))).toBe('2026-11-10T00:00:00Z')
+    expect(cloudStamp(new Date('2026-11-10T00:40:00Z'))).toBe('2026-11-10T00:10:00Z')
+    expect(stepBack('2026-11-10T00:00:00Z', 1)).toBe('2026-11-09T23:50:00Z')
+    expect(cloudTileUrl('2026-11-10T00:00:00Z')).toBe('liveclouds://2026-11-10T00:00:00Z/{z}/{y}/{x}')
+    expect(nowTileUrl('2026-11-10', 'k')).toBe('livenow://2026-11-10/{z}/{y}/{x}?r=k')
+  })
+  it('knows where geostationary satellites see well', () => {
+    expect(geoWeight(3.14, 101.69)).toBe(1) // Kuala Lumpur: Himawari
+    expect(geoWeight(19.4, -99.1)).toBe(1) // Mexico City: GOES-East
+    expect(geoWeight(0, -170)).toBe(1) // central Pacific: GOES-West
+    expect(geoWeight(51.5, 0)).toBe(0) // London: none of them
+    expect(geoWeight(-1.3, 36.8)).toBe(0) // Nairobi: none of them
+    expect(viewAngle(0, 140.7, 140.7)).toBeCloseTo(0, 5)
+  })
+  it('places tile pixels correctly', () => {
+    const p = pixelLonLat(0, 0, 0, 128, 128)
+    expect(p.lon).toBeCloseTo(0.7, 0)
+    expect(p.lat).toBeCloseTo(-0.7, 0)
+    expect(pixelLonLat(0, 0, 0, 0, 0).lat).toBeGreaterThan(84.9) // half a pixel below the 85.05° map edge
+  })
+  it('turns bright infrared into white cloud and dark ground into transparency', () => {
+    const ir = new Uint8ClampedArray([40, 40, 40, 255, 230, 230, 230, 255, 155, 155, 155, 255, 255, 255, 255, 0])
+    const out = new Uint8ClampedArray(16)
+    irToCloud(ir, out)
+    expect(out[3]).toBe(0) // warm ground: clear
+    expect(out[7]).toBeGreaterThan(220) // cold cloud tops: solid
+    expect(out[11]).toBeGreaterThan(60)
+    expect(out[11]).toBeLessThan(160) // mid-level cloud: see-through
+    expect(out[15]).toBe(0) // outside the satellite's disk
+    const half = new Uint8ClampedArray(16)
+    irToCloud(ir, half, new Float32Array([1, 0.5, 1, 1]))
+    expect(half[7]).toBeLessThan(out[7]) // near the disk edge clouds fade
+  })
+})

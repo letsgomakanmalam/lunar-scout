@@ -61,4 +61,13 @@ Only the probed coordinates are sent to these services. Caves and remoteness are
 | Photon geocoder (https://photon.komoot.io) | Komoot, OpenStreetMap data | Place search | Fair use of the public service; © OpenStreetMap contributors |
 | Sun and Moon positions, day and night | Computed in the browser (low-precision formulas, following SunCalc's method) | Live day and night shading, Sun and Moon overhead | n/a |
 
+## Live clouds (Live Earth map type)
+| Layer | Satellite (operator) | Use | Credit |
+|---|---|---|---|
+| GOES-East_ABI_Band13_Clean_Infrared | GOES-East (NOAA) | Live clouds over the Americas and Atlantic, every 10 minutes | NOAA via NASA GIBS |
+| GOES-West_ABI_Band13_Clean_Infrared | GOES-West (NOAA) | Live clouds over the Pacific and western Americas | NOAA via NASA GIBS |
+| Himawari_AHI_Band13_Clean_Infrared | Himawari (JMA) | Live clouds over Asia, including Malaysia, and Australia | JMA via NASA GIBS |
+
+Infrared works day and night: bright, cold cloud tops become white cloud over a cloud-free Blue Marble. GIBS has no geostationary layer for Europe, Africa or the poles.
+
 A commercial version would need a licence for Sentinel-2 cloudless (or a different satellite layer).
