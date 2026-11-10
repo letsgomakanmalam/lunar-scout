@@ -34,6 +34,19 @@ function pagesUrl(url) {
   return m ? `https://${m[1].toLowerCase()}.github.io/${m[2]}/` : null
 }
 
+// Files deleted from the project in later versions
+const REMOVED = ['src/data/moon.ts']
+
+/** GitHub tests the code before publishing; if the type check fails here, it will fail there too. */
+function warnIfBroken() {
+  const r = spawnSync('npx', ['tsc', '--noEmit'], { encoding: 'utf8', shell: process.platform === 'win32', timeout: 180000 })
+  if (r.status === 0 || r.error) return
+  const first = (r.stdout || r.stderr || '').split('\n').filter(Boolean).slice(0, 3).join('\n    ')
+  say('WARNING: the code has errors, so GitHub will NOT publish this version and the live site stays as it was.')
+  if (first) say(`First error:\n    ${first}`)
+  say('Run check-all.bat (or npm run check) to see every error.')
+}
+
 function main() {
   if (process.env.CI) return // never inside GitHub Actions
   if (process.env.LUNAR_AUTOPUSH === '0') return say('Auto-save is switched off (LUNAR_AUTOPUSH=0).')
@@ -67,6 +80,9 @@ function main() {
     git(['config', 'user.email', `${owner}@users.noreply.github.com`])
   }
 
+  // Unzipping a new version over an old folder leaves removed files behind. A stale file that no longer
+  // compiles stops GitHub from publishing the site, so clear out files this project no longer uses.
+  for (const f of REMOVED) if (existsSync(f)) { rmSync(f, { force: true }); say(`Removed ${f} (no longer part of the project).`) }
   git(['add', '-A'])
   if (ok(git(['diff', '--cached', '--quiet']))) {
     say('No new changes since the last save.')
@@ -98,6 +114,7 @@ function main() {
   if (ok(ahead) && out(ahead) === '0') {
     return say(`Already up to date.${site ? ` Your 24/7 link: ${site}` : ''}`)
   }
+  warnIfBroken()
   if (ok(git(['push', '-q', '-u', 'origin', branch], { stdio: 'inherit', timeout: 300000 }))) {
     say(`Pushed to GitHub.${site ? ` Your 24/7 link: ${site}` : ''}`)
     // Watch for the site to go live, then show, copy and open the link. When the site is

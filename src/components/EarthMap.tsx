@@ -5,6 +5,7 @@ import type { EarthSite } from '../data/types'
 import { useGame, type MapBase, type MapPrefs } from '../store'
 import { distanceKm, formatDistance, greatCircle, nearest, pathKm, unwrapLon, type LatLon, type PlaceHit } from '../lib/geo'
 import { nightBands, skyAt, type SkyNow } from '../lib/sky'
+import { installLiveProtocol, liveDate, liveTileUrl } from '../lib/liveTiles'
 import { fmtCoords, fmtLat, fmtLon } from '../lib/format'
 import MapSearch from './MapSearch'
 import Icon from './Icon'
@@ -83,7 +84,8 @@ function install(map: MLMap, date: string) {
   const belowLabels = layers.find(l => l.type === 'symbol')?.id
   map.addSource('ls-blue', { type: 'raster', tiles: [BLUE], tileSize: 256, maxzoom: 8, attribution: 'Imagery: NASA GIBS Blue Marble' })
   map.addSource('ls-s2', { type: 'raster', tiles: [S2], tileSize: 256, maxzoom: 14, attribution: '<a href="https://s2maps.eu">Sentinel-2 cloudless</a> by EOX IT Services GmbH (contains modified Copernicus Sentinel data 2024)' })
-  map.addSource('ls-today', { type: 'raster', tiles: [VIIRS(date)], tileSize: 256, maxzoom: 9, attribution: `NASA GIBS, VIIRS NOAA-20 (${date})` })
+  // Composited in the browser: the daily picture over a dimmed Blue Marble wherever it has no data (lib/liveTiles.ts)
+  map.addSource('ls-today', { type: 'raster', tiles: [liveTileUrl(date)], tileSize: 256, maxzoom: 9, attribution: `NASA GIBS, VIIRS NOAA-20 (${date}); no-data areas from Blue Marble` })
   const hidden = { visibility: 'none' as const }
   map.addLayer({ id: 'ls-blue', type: 'raster', source: 'ls-blue', layout: hidden }, aboveBackground)
   map.addLayer({ id: 'ls-s2', type: 'raster', source: 'ls-s2', layout: hidden }, aboveBackground)
@@ -124,6 +126,18 @@ function apply(map: MLMap, p: MapPrefs, streetsOk: boolean) {
   vis('ls-night', p.dayNight)
 }
 
+const tile = (t: string, z: number, y: number, x: number) => t.replace('{z}', String(z)).replace('{y}', String(y)).replace('{x}', String(x))
+
+/** The Sun and Moon share one label when their points are close: at new moon they sit on top of each other. */
+function syncSkyLabels(map: MLMap, marks: { sun: Marker; moon: Marker } | null, sky: SkyNow) {
+  if (!marks) return
+  const a = map.project([sky.sun.lon, sky.sun.lat]), b = map.project([sky.moon.lon, sky.moon.lat])
+  const close = (Math.abs(a.x - b.x) < 150 && Math.abs(a.y - b.y) < 40) || distanceKm(sky.sun, sky.moon) < 600
+  const label = marks.sun.getElement().querySelector('span')
+  if (label) label.textContent = close ? 'Sun and Moon overhead' : 'Sun overhead'
+  marks.moon.getElement().classList.toggle('label-off', close)
+}
+
 function skyMarker(kind: 'sun' | 'moon') {
   const el = document.createElement('div')
   el.className = `sky-mark sky-${kind}`
@@ -158,7 +172,7 @@ export default function EarthMap({ selectedId, scannedIds, onSelect, sites = EAR
   const [geoError, setGeoError] = useState<string | null>(null)
   const [sky, setSky] = useState<SkyNow>(() => skyAt(new Date()))
   // Yesterday (UTC) is the latest full day of NASA's near-real-time satellite pictures.
-  const date = useMemo(() => new Date(Date.now() - 86400000).toISOString().slice(0, 10), [])
+  const date = useMemo(() => liveDate(), [])
   const dateLabel = useMemo(() => new Date(`${date}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }), [date])
 
   const live = useRef({ selectedId, scannedIds, onSelect, measuring, prefs, sky, sites, probeMode, onProbe })
@@ -167,6 +181,7 @@ export default function EarthMap({ selectedId, scannedIds, onSelect, sites = EAR
   useEffect(() => {
     if (!box.current) return
     let map: MLMap
+    installLiveProtocol((d, z, y, x) => tile(VIIRS(d), z, y, x), (z, y, x) => tile(BLUE, z, y, x))
     try {
       map = new maplibregl.Map({
         container: box.current, style: STYLE_URL, center: [20, 20], zoom: 1.2, maxZoom: 18,
@@ -178,6 +193,15 @@ export default function EarthMap({ selectedId, scannedIds, onSelect, sites = EAR
       return
     }
     mapRef.current = map
+    // Never zoom out so far that several Earths sit side by side: one Earth always fills the width
+    const fitWorld = () => map.setMinZoom(Math.max(0, Math.log2((box.current?.clientWidth || 512) / 512)))
+    fitWorld()
+    map.on('resize', fitWorld)
+    let skyRaf = 0
+    map.on('move', () => {
+      cancelAnimationFrame(skyRaf)
+      skyRaf = requestAnimationFrame(() => syncSkyLabels(map, skyMarks.current, live.current.sky))
+    })
     let styled = false
     let fellBack = false
     const fallBack = () => {
@@ -277,6 +301,7 @@ export default function EarthMap({ selectedId, scannedIds, onSelect, sites = EAR
       skyMarks.current.moon.setLngLat([sky.moon.lon, sky.moon.lat]).addTo(m)
       skyMarks.current.sun.getElement().title = `The Sun is directly overhead here right now (${fmtCoords(sky.sun.lat, sky.sun.lon, 1)})`
       skyMarks.current.moon.getElement().title = `The Moon is directly overhead here right now, ${Math.round(sky.moon.km).toLocaleString('en-US')} km away`
+      syncSkyLabels(m, skyMarks.current, sky)
     } else {
       skyMarks.current?.sun.remove()
       skyMarks.current?.moon.remove()
@@ -481,7 +506,7 @@ export default function EarthMap({ selectedId, scannedIds, onSelect, sites = EAR
 
       <div className="map-foot" aria-hidden="true">
         {(base === 'live' || prefs.dayNight) && (
-          <span className="map-live"><span className="dot" />{base === 'live' ? `Live satellite, ${dateLabel}` : `Live day and night, ${time}`}</span>
+          <span className="map-live" title={base === 'live' ? `NASA VIIRS picture of ${dateLabel}, the newest complete day. Where it has no data, such as polar night, NASA's Blue Marble shows through, dimmed.` : undefined}><span className="dot" />{base === 'live' ? `Live satellite, ${dateLabel}` : `Live day and night, ${time}`}</span>
         )}
         <span className="map-readout" ref={readout}>20.00° N   20.00° E   zoom 1.2</span>
         <div className="legend">

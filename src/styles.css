@@ -1185,3 +1185,6 @@ label { display: grid; gap: .35rem; font: 600 .8rem var(--head); letter-spacing:
   .gs-list li { grid-template-columns: 24px minmax(0, 1fr) auto; }
   .gs-list li .btn { grid-column: 2 / -1; justify-self: start; }
 }
+
+/* Sun and Moon share one label when they sit close together (new moon) */
+.sky-mark.label-off span { display: none; }

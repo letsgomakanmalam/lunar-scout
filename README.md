@@ -73,6 +73,7 @@ The Explore Earth map works like Google Maps:
 - **Search** any place, and use the **location** button to show where you are. Each search result shows how far it is from you, its nearest listed analog, and a **Probe here** button.
 - **Probe** (crosshair button): click any point on land to characterize it with live NASA and ESA data. Your discoveries appear as teal markers.
 - **Measure** (ruler button): tap points on Earth to get distances along the curved Earth, in km or miles.
+- **Live satellite** shows NASA's newest *complete* daily VIIRS picture. Where it has no data (polar night, such as the Arctic in November, or orbits still being processed), a dimmed Blue Marble shows through instead of black (`src/lib/liveTiles.ts`). You can't zoom out past one Earth, and the Sun and Moon share one label when they meet at new moon.
 - **Live**: the day and night shadow, and where the Sun and the Moon are directly overhead, update every minute.
 No API keys are needed. Search and map tiles need an internet connection; the game itself still works offline with imagery only.
 
