@@ -37,7 +37,7 @@ describe('live satellite tiles', () => {
   })
 })
 
-import { cloudStamp, cloudTileUrl, geoWeight, irToCloud, nowTileUrl, pixelLonLat, stepBack, viewAngle } from './liveTiles'
+import { cloudStamp, cloudTileUrl, geoWeight, irToCloud, pixelLonLat, stepBack, viewAngle, visToCloud } from './liveTiles'
 
 describe('live clouds', () => {
   it('asks for the newest 10-minute picture that should exist, about 30 minutes back', () => {
@@ -45,8 +45,7 @@ describe('live clouds', () => {
     expect(cloudStamp(new Date('2026-11-10T00:39:59Z'))).toBe('2026-11-10T00:00:00Z')
     expect(cloudStamp(new Date('2026-11-10T00:40:00Z'))).toBe('2026-11-10T00:10:00Z')
     expect(stepBack('2026-11-10T00:00:00Z', 1)).toBe('2026-11-09T23:50:00Z')
-    expect(cloudTileUrl('2026-11-10T00:00:00Z')).toBe('liveclouds://2026-11-10T00:00:00Z/{z}/{y}/{x}')
-    expect(nowTileUrl('2026-11-10', 'k')).toBe('livenow://2026-11-10/{z}/{y}/{x}?r=k')
+    expect(cloudTileUrl('2026-11-10T00:00:00Z', '2026-11-10')).toBe('liveclouds://2026-11-10T00:00:00Z/{z}/{y}/{x}?d=2026-11-10')
   })
   it('knows where geostationary satellites see well', () => {
     expect(geoWeight(3.14, 101.69)).toBe(1) // Kuala Lumpur: Himawari
@@ -76,3 +75,21 @@ describe('live clouds', () => {
     expect(half[7]).toBeLessThan(out[7]) // near the disk edge clouds fade
   })
 })
+
+describe('clouds from the daily picture', () => {
+  it('keeps white cloud, drops sea, sand, forest and no-data', () => {
+    // cloud, deep sea, desert sand, forest, no-data black
+    const px = new Uint8ClampedArray([230, 232, 236, 255, 20, 45, 90, 255, 205, 170, 125, 255, 50, 90, 40, 255, 0, 0, 0, 255])
+    const out = new Uint8ClampedArray(px.length)
+    visToCloud(px, out)
+    expect(out[3]).toBeGreaterThan(180)
+    expect(out[7]).toBe(0)
+    expect(out[11]).toBeLessThan(30)
+    expect(out[15]).toBe(0)
+    expect(out[19]).toBe(0)
+    const faded = new Uint8ClampedArray(px.length)
+    visToCloud(px, faded, new Float32Array([0.25, 1, 1, 1, 1]))
+    expect(faded[3]).toBeLessThan(out[3]) // fades out where a satellite takes over
+  })
+})
+

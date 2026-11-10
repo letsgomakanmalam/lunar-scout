@@ -68,6 +68,6 @@ Only the probed coordinates are sent to these services. Caves and remoteness are
 | GOES-West_ABI_Band13_Clean_Infrared | GOES-West (NOAA) | Live clouds over the Pacific and western Americas | NOAA via NASA GIBS |
 | Himawari_AHI_Band13_Clean_Infrared | Himawari (JMA) | Live clouds over Asia, including Malaysia, and Australia | JMA via NASA GIBS |
 
-Infrared works day and night: bright, cold cloud tops become white cloud over a cloud-free Blue Marble. GIBS has no geostationary layer for Europe, Africa or the poles.
+Infrared works day and night: bright, cold cloud tops become white cloud over a cloud-free Blue Marble. GIBS has no geostationary layer for Europe, Africa or the poles, so there the clouds are taken from the newest VIIRS daily picture (bright, grey pixels) over the same Blue Marble ground.
 
 A commercial version would need a licence for Sentinel-2 cloudless (or a different satellite layer).

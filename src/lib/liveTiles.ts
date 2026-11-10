@@ -15,8 +15,8 @@
  * "Live Earth" goes further: three geostationary weather satellites photograph their half of the
  * planet every 10 minutes (NOAA's GOES-East and GOES-West, JMA's Himawari, served by NASA GIBS).
  * Their infrared pictures, which work day and night, become a live cloud layer over a cloud-free
- * Blue Marble ground. Europe, Africa and the poles have no geostationary picture in GIBS, so there the
- * ground blends smoothly into the newest daily picture instead.
+ * Blue Marble ground, the same colours everywhere. Europe, Africa and the poles have no geostationary
+ * picture in GIBS, so there the clouds come from the newest daily picture instead, drawn the same way.
  */
 import maplibregl from 'maplibre-gl'
 
@@ -24,7 +24,7 @@ export const PROTOCOL = 'livefill'
 /** How many earlier days fill the places today's orbits have not reached */
 export const LOOKBACK = 2
 /** Brightness of Blue Marble where there is no recent picture (it reads as "no live picture here") */
-export const BACKUP_DIM = 0.55
+export const BACKUP_DIM = 0.75
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
@@ -132,8 +132,8 @@ export function cloudStamp(now: Date = new Date(), stepsBack = 0): string {
   return new Date(t).toISOString().slice(0, 19) + 'Z'
 }
 
-export const nowTileUrl = (date: string, refresh = '') => `livenow://${date}/{z}/{y}/{x}${refresh ? `?r=${refresh}` : ''}`
-export const cloudTileUrl = (time: string) => `liveclouds://${time}/{z}/{y}/{x}`
+/** Live clouds for a 10-minute picture time; the date picks the daily picture used where no satellite sees. */
+export const cloudTileUrl = (time: string, date: string) => `liveclouds://${time}/{z}/{y}/{x}?d=${date}`
 
 const RAD = Math.PI / 180
 const smooth = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t) }
@@ -167,6 +167,23 @@ export function irToCloud(ir: Uint8ClampedArray, out: Uint8ClampedArray, weight?
     const c = Math.min(1, Math.max(0, (Math.max(ir[i], ir[i + 1], ir[i + 2]) - IR_LO) / (IR_HI - IR_LO)))
     const alpha = 255 * Math.pow(c, 1.3) * 0.92 * (a / 255) * (weight ? weight[p] : 1)
     if (alpha <= out[i + 3]) continue // keep the clearer view where two satellites overlap
+    out[i] = 246; out[i + 1] = 248; out[i + 2] = 252; out[i + 3] = alpha
+  }
+}
+
+/**
+ * Clouds from a true-colour daily picture: bright, nearly grey pixels (cloud, also snow and ice) become
+ * white on transparency; coloured ground, sea and no-data black stay clear. weight fades it in.
+ */
+export function visToCloud(px: Uint8ClampedArray, out: Uint8ClampedArray, weight?: Float32Array): void {
+  for (let i = 0, p = 0; i < px.length; i += 4, p++) {
+    const r = px[i], g = px[i + 1], b = px[i + 2]
+    const lo = Math.min(r, g, b), hi = Math.max(r, g, b)
+    if (hi < 60) continue
+    const bright = Math.min(1, Math.max(0, (lo - 120) / (215 - 120)))
+    const grey = 1 - Math.min(1, Math.max(0, ((hi - lo) / hi - 0.18) / 0.25))
+    const alpha = 255 * Math.pow(bright * grey, 1.2) * 0.9 * (weight ? weight[p] : 1)
+    if (alpha <= out[i + 3]) continue
     out[i] = 246; out[i + 1] = 248; out[i + 2] = 252; out[i + 3] = alpha
   }
 }
@@ -235,7 +252,7 @@ export const stepBack = (time: string, n: number) => new Date(Date.parse(time) -
 export const CLOUD_EVENT = 'ls-clouds'
 const report = (ok: boolean, time?: string) => { if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(CLOUD_EVENT, { detail: { ok, time } })) }
 
-/** Registers the livefill://, livenow:// and liveclouds:// protocols once. */
+/** Registers the livefill:// (daily picture) and liveclouds:// (live clouds) protocols once. */
 export function installLiveProtocol(urls: Urls, backupMaxZoom = 8) {
   if (installed) return
   installed = true
@@ -254,7 +271,7 @@ export function installLiveProtocol(urls: Urls, backupMaxZoom = 8) {
   }
 
   /** Newest daily picture for a tile: today, the days before, then dimmed Blue Marble. */
-  async function daily(date: string, z: number, y: number, x: number, signal: AbortSignal, read: (img: ImageBitmap, crop?: { sx: number; sy: number; size: number }) => Uint8ClampedArray, ctx: Ctx) {
+  async function daily(date: string, z: number, y: number, x: number, signal: AbortSignal, read: (img: ImageBitmap, crop?: { sx: number; sy: number; size: number }) => Uint8ClampedArray, ctx: Ctx, withBackup = true) {
     let out: ImageData | null = null
     let missing = 256 * 256
     const add = (px: Uint8ClampedArray, dim = 1) => {
@@ -269,7 +286,7 @@ export function installLiveProtocol(urls: Urls, backupMaxZoom = 8) {
       const img = await bitmap(urls.live(d, z, y, x), signal)
       if (img) add(read(img))
     }
-    if (missing) {
+    if (missing && withBackup) {
       const a = ancestor(z, y, x, backupMaxZoom)
       const img = await bitmap(urls.backup(a.z, a.y, a.x), signal)
       if (img) add(read(img, a), BACKUP_DIM)
@@ -282,45 +299,6 @@ export function installLiveProtocol(urls: Urls, backupMaxZoom = 8) {
     const { c, ctx, read } = canvases()
     const out = await daily(date, z, y, x, abort.signal, read, ctx)
     if (!out) throw new Error('No imagery for this tile')
-    ctx.putImageData(out, 0, 0)
-    return { data: await toBytes(c) }
-  })
-
-  // Live Earth ground: cloud-free Blue Marble where a geostationary satellite supplies live clouds,
-  // blending into the newest daily picture where none does (Europe, Africa, the poles).
-  maplibregl.addProtocol('livenow', async (params, abort) => {
-    const { key: date, z, y, x } = parse('livenow', params.url)
-    const { c, ctx, read } = canvases()
-    const w = new Float32Array(256 * 256)
-    let lo = 1, hi = 0
-    for (let py = 0; py < 256; py++) for (let px = 0; px < 256; px++) {
-      const { lat, lon } = pixelLonLat(z, x, y, px, py)
-      const v = geoWeight(lat, lon)
-      w[py * 256 + px] = v
-      if (v < lo) lo = v
-      if (v > hi) hi = v
-    }
-    const a = ancestor(z, y, x, backupMaxZoom)
-    const ground = hi > 0.001 ? await bitmap(urls.backup(a.z, a.y, a.x), abort.signal) : null
-    const groundPx = ground ? read(ground, a) : null
-    if (groundPx && lo >= 0.999) {
-      ctx.putImageData(new ImageData(new Uint8ClampedArray(groundPx), 256, 256), 0, 0)
-      return { data: await toBytes(c) }
-    }
-    const day = await daily(date, z, y, x, abort.signal, read, ctx)
-    if (!day && !groundPx) throw new Error('No imagery for this tile')
-    const out = day ?? new ImageData(new Uint8ClampedArray(groundPx!), 256, 256)
-    if (day && groundPx) {
-      const d = out.data
-      for (let i = 0, p = 0; i < d.length; i += 4, p++) {
-        const k = w[p]
-        if (k <= 0) continue
-        d[i] = d[i] * (1 - k) + groundPx[i] * k
-        d[i + 1] = d[i + 1] * (1 - k) + groundPx[i + 1] * k
-        d[i + 2] = d[i + 2] * (1 - k) + groundPx[i + 2] * k
-        d[i + 3] = 255
-      }
-    }
     ctx.putImageData(out, 0, 0)
     return { data: await toBytes(c) }
   })
@@ -350,6 +328,7 @@ export function installLiveProtocol(urls: Urls, backupMaxZoom = 8) {
   // Live clouds: each geostationary satellite's infrared picture as white cloud on transparency.
   maplibregl.addProtocol('liveclouds', async (params, abort) => {
     const { key: time, z, y, x } = parse('liveclouds', params.url)
+    const date = /[?&]d=(\d{4}-\d{2}-\d{2})/.exec(params.url)?.[1]
     const { c, ctx, read } = canvases()
     // Satellites that can see some of this tile
     const corners = [[0, 0], [255, 0], [0, 255], [255, 255], [128, 128]].map(([px, py]) => pixelLonLat(z, x, y, px, py))
@@ -362,6 +341,8 @@ export function installLiveProtocol(urls: Urls, backupMaxZoom = 8) {
       return f ? bitmap(urls.geo(s.id, f.time, f.set, gz, y >> dz, x >> dz), abort.signal) : Promise.resolve(null)
     }))
     let got = 0, newest = ''
+    // How well some satellite sees each pixel; the daily picture covers the rest
+    const seen = new Float32Array(256 * 256)
     sats.forEach((s, i) => {
       const img = imgs[i]
       if (!img) return
@@ -369,8 +350,19 @@ export function installLiveProtocol(urls: Urls, backupMaxZoom = 8) {
       const t = found[s.id]!.time
       if (t > newest) newest = t
       const crop = dz ? { sx: (x % (1 << dz)) * (256 >> dz), sy: (y % (1 << dz)) * (256 >> dz), size: 256 >> dz } : undefined
-      irToCloud(read(img, crop), out.data, satWeights(z, x, y, s.lon))
+      const w = satWeights(z, x, y, s.lon)
+      for (let p = 0; p < w.length; p++) if (w[p] > seen[p]) seen[p] = w[p]
+      irToCloud(read(img, crop), out.data, w)
     })
+    if (date) {
+      const rest = new Float32Array(256 * 256)
+      let need = false
+      for (let p = 0; p < rest.length; p++) { rest[p] = 1 - seen[p]; if (rest[p] > 0.001) need = true }
+      if (need) {
+        const day = await daily(date, Math.min(z, 9), y, x, abort.signal, read, ctx, false)
+        if (day) visToCloud(day.data, out.data, rest)
+      }
+    }
     if (sats.length) report(got > 0, newest || time)
     // Add ?lsdebug to the page address to inspect cloud tiles in the console (window.__lsClouds)
     if (typeof location !== 'undefined' && location.search.includes('lsdebug')) {
