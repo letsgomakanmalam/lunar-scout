@@ -70,6 +70,6 @@ Only the probed coordinates are sent to these services. Caves and remoteness are
 
 | VIIRS_NOAA20_Brightness_Temp_BandI5_Night / _Day | NOAA-20 VIIRS (NASA/NOAA) | Clouds over Europe, Africa and the poles, including polar night (daily night and day passes) | NASA GIBS |
 
-Infrared works day and night. GIBS draws these layers with colour palettes (colormaps/v1.3/Clean_Longwave_Infrared_Window_Band.xml and VIIRS_Brightness_Temp_BandI5.xml), so the app decodes each colour back to a brightness temperature, then treats cold pixels as cloud. The clear-sky cut-off is 285 K at the equator, falling by 0.55 K per degree of latitude, because the ground itself is very cold near the poles.
+Infrared works day and night. GIBS draws these layers with colour palettes (colormaps/v1.3/Clean_Longwave_Infrared_Window_Band.xml and VIIRS_Brightness_Temp_BandI5.xml), so the app decodes each colour back to a brightness temperature, then treats cold pixels as cloud. The clear-sky cut-off is 285 K at the equator, falling by 0.55 K per degree of latitude, because the ground itself is very cold near the poles. Images are decoded without colour management; black in VIIRS tiles (scan gaps, missing swaths) counts as missing data, thin scan gaps are bridged from neighbouring rows, a cold-band grey only counts as cold when it connects to a storm's coloured bands, and lone cloud pixels are removed.
 
 A commercial version would need a licence for Sentinel-2 cloudless (or a different satellite layer).

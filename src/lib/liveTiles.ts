@@ -20,7 +20,7 @@
  * day), which also sees clouds in polar night. Both are decoded from colour to temperature first.
  */
 import maplibregl from 'maplibre-gl'
-import { cleanIrTempC, cloudAlpha, viirsTempK } from './irPalettes'
+import { cloudAlpha, decodeBand13, isViirsNoData, viirsTempK } from './irPalettes'
 
 export const PROTOCOL = 'livefill'
 /** How many earlier days fill the places today's orbits have not reached */
@@ -169,12 +169,12 @@ const put = (out: Uint8ClampedArray, i: number, alpha: number) => {
  * rowLat gives each pixel row's latitude (the clear-sky threshold depends on it); weight fades
  * clouds out towards the edge of the satellite's view.
  */
-export function irToCloud(ir: Uint8ClampedArray, out: Uint8ClampedArray, weight?: Float32Array, rowLat?: Float32Array): void {
+export function irToCloud(ir: Uint8ClampedArray, out: Uint8ClampedArray, weight?: Float32Array, rowLat?: Float32Array, w = 256): void {
+  const temps = decodeBand13(ir, w, ir.length / 4 / w)
   for (let i = 0, p = 0; i < ir.length; i += 4, p++) {
-    if (!ir[i + 3]) continue
-    const c = cleanIrTempC(ir[i], ir[i + 1], ir[i + 2])
+    const c = temps[p]
     if (Number.isNaN(c)) continue
-    const a = cloudAlpha(c + 273.15, rowLat ? rowLat[p >> 8] : 0)
+    const a = cloudAlpha(c + 273.15, rowLat ? rowLat[Math.floor(p / w)] : 0)
     if (a > 0) put(out, i, 255 * a * 0.92 * (weight ? weight[p] : 1))
   }
 }
@@ -183,16 +183,45 @@ export function irToCloud(ir: Uint8ClampedArray, out: Uint8ClampedArray, weight?
  * VIIRS I5 brightness temperature tile (GIBS palette, warm = bright) to white cloud, only where no
  * earlier source has data yet (covered). Returns how many weighted pixels are still without data.
  */
-export function btToCloud(px: Uint8ClampedArray, out: Uint8ClampedArray, weight: Float32Array, rowLat: Float32Array, covered: Uint8Array): number {
+export function btToCloud(px: Uint8ClampedArray, out: Uint8ClampedArray, weight: Float32Array, rowLat: Float32Array, covered: Uint8Array, w = 256): number {
+  const n = px.length / 4
+  const bad = (q: number) => isViirsNoData(px[q * 4], px[q * 4 + 1], px[q * 4 + 2], px[q * 4 + 3])
   let left = 0
-  for (let i = 0, p = 0; i < px.length; i += 4, p++) {
+  for (let p = 0; p < n; p++) {
     if (covered[p] || weight[p] <= 0.001) continue
-    if (!px[i + 3]) { left++; continue }
+    let src = p
+    if (bad(p)) {
+      // Thin scan-line gaps run along the scan: borrow the nearest good pixel up to 3 rows away
+      src = -1
+      for (let k = 1; k <= 3 && src < 0; k++) {
+        if (p - k * w >= 0 && !bad(p - k * w)) src = p - k * w
+        else if (p + k * w < n && !bad(p + k * w)) src = p + k * w
+      }
+      if (src < 0) { left++; continue } // a real hole: leave it to an older pass
+    }
     covered[p] = 1
-    const a = cloudAlpha(viirsTempK(px[i], px[i + 1], px[i + 2]), rowLat[p >> 8])
-    if (a > 0) put(out, i, 255 * a * 0.92 * weight[p])
+    const j = src * 4
+    const a = cloudAlpha(viirsTempK(px[j], px[j + 1], px[j + 2]), rowLat[Math.floor(p / w)])
+    if (a > 0) put(out, p * 4, 255 * a * 0.92 * weight[p])
   }
   return left
+}
+
+/** Removes lone cloud pixels (noise): a cloudy pixel needs at least two cloudy neighbours. */
+export function despeckle(out: Uint8ClampedArray, w = 256): void {
+  const h = out.length / 4 / w
+  const keep = new Uint8Array(w * h)
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (!out[(y * w + x) * 4 + 3]) continue
+    let n = 0
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (!dx && !dy) continue
+      const xx = x + dx, yy = y + dy
+      if (xx >= 0 && yy >= 0 && xx < w && yy < h && out[(yy * w + xx) * 4 + 3]) n++
+    }
+    keep[y * w + x] = n >= 2 ? 1 : 0
+  }
+  for (let p = 0; p < keep.length; p++) if (!keep[p]) out[p * 4 + 3] = 0
 }
 
 /** Per-pixel view weight of one satellite over a tile (1 = straight down, 0 = beyond its edge). */
@@ -222,12 +251,13 @@ const toBytes = async (c: Canvas, type = 'image/jpeg'): Promise<ArrayBuffer> => 
   if (!blob) throw new Error('Could not encode tile')
   return blob.arrayBuffer()
 }
-async function bitmap(url: string, signal: AbortSignal, fresh = false): Promise<ImageBitmap | null> {
+async function bitmap(url: string, signal: AbortSignal, fresh = false, raw = false): Promise<ImageBitmap | null> {
   try {
     // Today's picture keeps growing during the day, so it skips the browser cache
     const res = await fetch(url, { signal, cache: fresh ? 'no-cache' : 'default' })
     if (!res.ok) return null
-    return await createImageBitmap(await res.blob())
+    // Palette images must keep their exact colours: no colour management, no premultiplying
+    return await createImageBitmap(await res.blob(), raw ? { colorSpaceConversion: 'none', premultiplyAlpha: 'none' } : undefined)
   } catch (e) {
     if ((e as Error).name === 'AbortError') throw e
     return null
@@ -350,7 +380,7 @@ export function installLiveProtocol(urls: Urls, backupMaxZoom = 8) {
     const gz = Math.min(z, 6), dz = Math.max(0, z - 6)
     const imgs = await Promise.all(sats.map(s => {
       const f = found[s.id]
-      return f ? bitmap(urls.geo(s.id, f.time, f.set, gz, y >> dz, x >> dz), abort.signal) : Promise.resolve(null)
+      return f ? bitmap(urls.geo(s.id, f.time, f.set, gz, y >> dz, x >> dz), abort.signal, false, true) : Promise.resolve(null)
     }))
     let got = 0, newest = ''
     // How well some satellite sees each pixel; the daily picture covers the rest
@@ -375,11 +405,12 @@ export function installLiveProtocol(urls: Urls, backupMaxZoom = 8) {
         const covered = new Uint8Array(256 * 256)
         const yesterday = dayBefore(date, 1)
         for (const [pass, d] of [['Day', date], ['Night', date], ['Day', yesterday], ['Night', yesterday]] as const) {
-          const img = await bitmap(urls.bt(`VIIRS_NOAA20_Brightness_Temp_BandI5_${pass}`, d, Math.min(z, 9), y, x), abort.signal, d === date)
+          const img = await bitmap(urls.bt(`VIIRS_NOAA20_Brightness_Temp_BandI5_${pass}`, d, Math.min(z, 9), y, x), abort.signal, d === date, true)
           if (img && !btToCloud(read(img, undefined, true), out.data, rest, rowLat, covered)) break
         }
       }
     }
+    despeckle(out.data)
     if (sats.length) report(got > 0, newest || time)
     // Add ?lsdebug to the page address to inspect cloud tiles in the console (window.__lsClouds)
     if (typeof location !== 'undefined' && location.search.includes('lsdebug')) {

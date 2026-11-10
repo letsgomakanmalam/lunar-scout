@@ -37,7 +37,7 @@ describe('live satellite tiles', () => {
   })
 })
 
-import { btToCloud, cloudStamp, cloudTileUrl, geoWeight, irToCloud, pixelLonLat, stepBack, viewAngle } from './liveTiles'
+import { btToCloud, cloudStamp, cloudTileUrl, despeckle, geoWeight, irToCloud, pixelLonLat, stepBack, viewAngle } from './liveTiles'
 
 describe('live clouds', () => {
   it('asks for the newest 10-minute picture that should exist, about 30 minutes back', () => {
@@ -62,8 +62,8 @@ describe('live clouds', () => {
     expect(pixelLonLat(0, 0, 0, 0, 0).lat).toBeGreaterThan(84.9) // half a pixel below the 85.05° map edge
   })
   it('turns cold infrared into white cloud and warm ground into transparency (GIBS Band 13 palette)', () => {
-    // warm grey (+42 °C ground), cold grey (-79.6 °C), mid grey (-12 °C), outside the disk
-    const ir = new Uint8ClampedArray([40, 40, 40, 255, 230, 230, 230, 255, 180, 180, 180, 255, 255, 255, 255, 0])
+    // warm grey (+42 °C ground), white (-91.6 °C, the coldest tops), mid grey (-12 °C), outside the disk
+    const ir = new Uint8ClampedArray([40, 40, 40, 255, 255, 255, 255, 255, 180, 180, 180, 255, 255, 255, 255, 0])
     const out = new Uint8ClampedArray(16)
     irToCloud(ir, out)
     expect(out[3]).toBe(0)
@@ -92,5 +92,30 @@ describe('live clouds', () => {
     expect(out[7]).toBe(0)
     expect(left).toBe(1) // the empty pixel still needs an older pass
     expect(Array.from(covered)).toEqual([1, 1, 0])
+    // opaque black (scan gaps in real tiles) is missing data, not 180 K cloud
+    const gap = new Uint8ClampedArray([0, 0, 0, 255])
+    const o2 = new Uint8ClampedArray(4)
+    expect(btToCloud(gap, o2, new Float32Array([1]), new Float32Array(256), new Uint8Array(1))).toBe(1)
+    expect(o2[3]).toBe(0)
+  })
+  it('bridges thin scan-line gaps but leaves real holes for older passes', () => {
+    // one column, 9 rows: cloud, gap, cloud, then a 7-row hole... (w = 1)
+    const navy = [19, 33, 100, 255], gap = [0, 0, 0, 255]
+    const col = new Uint8ClampedArray([...navy, ...gap, ...navy, ...gap, ...gap, ...gap, ...gap, ...gap, ...gap, ...gap, ...gap])
+    const n = col.length / 4
+    const out = new Uint8ClampedArray(n * 4)
+    const left = btToCloud(col, out, new Float32Array(n).fill(1), new Float32Array(n), new Uint8Array(n), 1)
+    expect(out[1 * 4 + 3]).toBeGreaterThan(200) // the one-row gap is bridged
+    expect(out[10 * 4 + 3]).toBe(0) // deep inside the hole: no data
+    expect(left).toBeGreaterThan(0)
+  })
+  it('removes lone cloud pixels but keeps real clouds', () => {
+    const w = 6, out = new Uint8ClampedArray(w * 4 * 4)
+    const set = (x: number, y: number) => { out[(y * w + x) * 4 + 3] = 200 }
+    set(0, 0) // a lone speck
+    for (let y = 1; y <= 3; y++) for (let x = 3; x <= 5; x++) set(x, y) // a 3×3 cloud
+    despeckle(out, w)
+    expect(out[3]).toBe(0)
+    expect(out[(2 * w + 4) * 4 + 3]).toBe(200)
   })
 })
