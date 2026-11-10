@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import maplibregl, { type GeoJSONSource, type Map as MLMap, type Marker, type StyleSpecification } from 'maplibre-gl'
+import maplibregl, { type GeoJSONSource, type Map as MLMap, type Marker, type StyleSpecification, type RasterTileSource } from 'maplibre-gl'
 import { EARTH_SITES } from '../data/earthSites'
 import type { EarthSite } from '../data/types'
 import { useGame, type MapBase, type MapPrefs } from '../store'
 import { distanceKm, formatDistance, greatCircle, nearest, pathKm, unwrapLon, type LatLon, type PlaceHit } from '../lib/geo'
 import { nightBands, skyAt, type SkyNow } from '../lib/sky'
-import { installLiveProtocol, liveDate, liveTileUrl } from '../lib/liveTiles'
+import { installLiveProtocol, liveStamp, liveTileUrl } from '../lib/liveTiles'
 import { fmtCoords, fmtLat, fmtLon } from '../lib/format'
 import MapSearch from './MapSearch'
 import Icon from './Icon'
@@ -77,7 +77,7 @@ function sitesData(sites: EarthSite[], selectedId: string | null, scannedIds: st
 }
 
 /** Adds our imagery, night, measuring and site layers to whichever style is loaded. */
-function install(map: MLMap, date: string) {
+function install(map: MLMap, date: string, liveUrl: string) {
   if (map.getSource('sites')) return
   const layers = map.getStyle().layers
   const aboveBackground = layers.find(l => l.type !== 'background')?.id
@@ -85,7 +85,7 @@ function install(map: MLMap, date: string) {
   map.addSource('ls-blue', { type: 'raster', tiles: [BLUE], tileSize: 256, maxzoom: 8, attribution: 'Imagery: NASA GIBS Blue Marble' })
   map.addSource('ls-s2', { type: 'raster', tiles: [S2], tileSize: 256, maxzoom: 14, attribution: '<a href="https://s2maps.eu">Sentinel-2 cloudless</a> by EOX IT Services GmbH (contains modified Copernicus Sentinel data 2024)' })
   // Composited in the browser: the daily picture over a dimmed Blue Marble wherever it has no data (lib/liveTiles.ts)
-  map.addSource('ls-today', { type: 'raster', tiles: [liveTileUrl(date)], tileSize: 256, maxzoom: 9, attribution: `NASA GIBS, VIIRS NOAA-20 (${date}); no-data areas from Blue Marble` })
+  map.addSource('ls-today', { type: 'raster', tiles: [liveUrl], tileSize: 256, maxzoom: 9, attribution: `NASA GIBS, VIIRS NOAA-20 (newest up to ${date}); no-data areas from Blue Marble` })
   const hidden = { visibility: 'none' as const }
   map.addLayer({ id: 'ls-blue', type: 'raster', source: 'ls-blue', layout: hidden }, aboveBackground)
   map.addLayer({ id: 'ls-s2', type: 'raster', source: 'ls-s2', layout: hidden }, aboveBackground)
@@ -172,7 +172,11 @@ export default function EarthMap({ selectedId, scannedIds, onSelect, sites = EAR
   const [geoError, setGeoError] = useState<string | null>(null)
   const [sky, setSky] = useState<SkyNow>(() => skyAt(new Date()))
   // Yesterday (UTC) is the latest full day of NASA's near-real-time satellite pictures.
-  const date = useMemo(() => liveDate(), [])
+  // Follows the computer's clock: its own date, refreshed every hour as NASA adds new orbits
+  const [stamp, setStamp] = useState(() => liveStamp())
+  const date = stamp.date
+  const liveUrl = liveTileUrl(stamp.date, stamp.refresh)
+  const appliedLive = useRef(liveUrl)
   const dateLabel = useMemo(() => new Date(`${date}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }), [date])
 
   const live = useRef({ selectedId, scannedIds, onSelect, measuring, prefs, sky, sites, probeMode, onProbe })
@@ -215,7 +219,7 @@ export default function EarthMap({ selectedId, scannedIds, onSelect, sites = EAR
     map.on('style.load', () => {
       styled = true
       clearTimeout(timer)
-      install(map, date)
+      install(map, date, appliedLive.current)
       const L = live.current
       ;(map.getSource('sites') as GeoJSONSource).setData(sitesData(L.sites, L.selectedId, L.scannedIds))
       ;(map.getSource('ls-night') as GeoJSONSource).setData(nightBands(L.sky.sun))
@@ -288,7 +292,7 @@ export default function EarthMap({ selectedId, scannedIds, onSelect, sites = EAR
 
   // Live sky: recompute every minute
   useEffect(() => {
-    const id = setInterval(() => setSky(skyAt(new Date())), 60000)
+    const id = setInterval(() => { const now = new Date(); setSky(skyAt(now)); const k = liveStamp(now); setStamp(p => (p.refresh === k.refresh ? p : k)) }, 60000)
     return () => clearInterval(id)
   }, [])
   useEffect(() => {
@@ -307,6 +311,14 @@ export default function EarthMap({ selectedId, scannedIds, onSelect, sites = EAR
       skyMarks.current?.moon.remove()
     }
   }, [sky, ready, prefs.sky])
+
+  // Newer orbits every hour, and a new day at the computer's midnight
+  useEffect(() => {
+    const m = mapRef.current
+    if (!m || !ready || appliedLive.current === liveUrl) return
+    appliedLive.current = liveUrl
+    ;(m.getSource('ls-today') as RasterTileSource | undefined)?.setTiles([liveUrl])
+  }, [liveUrl, ready])
 
   // Analog sites and the lock-on reticle
   useEffect(() => {
@@ -506,7 +518,7 @@ export default function EarthMap({ selectedId, scannedIds, onSelect, sites = EAR
 
       <div className="map-foot" aria-hidden="true">
         {(base === 'live' || prefs.dayNight) && (
-          <span className="map-live" title={base === 'live' ? `NASA VIIRS picture of ${dateLabel}, the newest complete day. Where it has no data, such as polar night, NASA's Blue Marble shows through, dimmed.` : undefined}><span className="dot" />{base === 'live' ? `Live satellite, ${dateLabel}` : `Live day and night, ${time}`}</span>
+          <span className="map-live" title={base === 'live' ? `NASA VIIRS pictures for your computer's date, ${dateLabel}, refreshed every hour. Places today's orbits have not reached yet come from the two days before; where there is no recent picture at all, such as polar night, NASA's Blue Marble shows through, dimmed.` : undefined}><span className="dot" />{base === 'live' ? `Live satellite, ${dateLabel} · ${time}` : `Live day and night, ${time}`}</span>
         )}
         <span className="map-readout" ref={readout}>20.00° N   20.00° E   zoom 1.2</span>
         <div className="legend">
