@@ -68,6 +68,8 @@ Only the probed coordinates are sent to these services. Caves and remoteness are
 | GOES-West_ABI_Band13_Clean_Infrared | GOES-West (NOAA) | Live clouds over the Pacific and western Americas | NOAA via NASA GIBS |
 | Himawari_AHI_Band13_Clean_Infrared | Himawari (JMA) | Live clouds over Asia, including Malaysia, and Australia | JMA via NASA GIBS |
 
-Infrared works day and night: bright, cold cloud tops become white cloud over a cloud-free Blue Marble. GIBS has no geostationary layer for Europe, Africa or the poles, so there the clouds are taken from the newest VIIRS daily picture (bright, grey pixels) over the same Blue Marble ground.
+| VIIRS_NOAA20_Brightness_Temp_BandI5_Night / _Day | NOAA-20 VIIRS (NASA/NOAA) | Clouds over Europe, Africa and the poles, including polar night (daily night and day passes) | NASA GIBS |
+
+Infrared works day and night. GIBS draws these layers with colour palettes (colormaps/v1.3/Clean_Longwave_Infrared_Window_Band.xml and VIIRS_Brightness_Temp_BandI5.xml), so the app decodes each colour back to a brightness temperature, then treats cold pixels as cloud. The clear-sky cut-off is 285 K at the equator, falling by 0.55 K per degree of latitude, because the ground itself is very cold near the poles.
 
 A commercial version would need a licence for Sentinel-2 cloudless (or a different satellite layer).

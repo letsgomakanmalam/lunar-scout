@@ -16,9 +16,11 @@
  * planet every 10 minutes (NOAA's GOES-East and GOES-West, JMA's Himawari, served by NASA GIBS).
  * Their infrared pictures, which work day and night, become a live cloud layer over a cloud-free
  * Blue Marble ground, the same colours everywhere. Europe, Africa and the poles have no geostationary
- * picture in GIBS, so there the clouds come from the newest daily picture instead, drawn the same way.
+ * picture in GIBS, so there the clouds come from NASA's VIIRS infrared (one night and one day pass a
+ * day), which also sees clouds in polar night. Both are decoded from colour to temperature first.
  */
 import maplibregl from 'maplibre-gl'
+import { cleanIrTempC, cloudAlpha, viirsTempK } from './irPalettes'
 
 export const PROTOCOL = 'livefill'
 /** How many earlier days fill the places today's orbits have not reached */
@@ -156,36 +158,41 @@ export function pixelLonLat(z: number, x: number, y: number, px: number, py: num
   return { lon, lat }
 }
 
-/** Cold cloud tops look bright in infrared; warm ground looks dark. Below LO is clear, above HI is solid cloud. */
-export const IR_LO = 95, IR_HI = 215
+const CLOUD_RGB = [246, 248, 252]
+const put = (out: Uint8ClampedArray, i: number, alpha: number) => {
+  if (alpha <= out[i + 3]) return // keep the stronger cloud where two sources overlap
+  out[i] = CLOUD_RGB[0]; out[i + 1] = CLOUD_RGB[1]; out[i + 2] = CLOUD_RGB[2]; out[i + 3] = alpha
+}
 
-/** Turns an infrared tile into white clouds on transparency, weighted by how well the satellite sees each pixel. */
-export function irToCloud(ir: Uint8ClampedArray, out: Uint8ClampedArray, weight?: Float32Array): void {
+/**
+ * Geostationary Band 13 tile (GIBS enhanced-infrared palette) to white cloud on transparency.
+ * rowLat gives each pixel row's latitude (the clear-sky threshold depends on it); weight fades
+ * clouds out towards the edge of the satellite's view.
+ */
+export function irToCloud(ir: Uint8ClampedArray, out: Uint8ClampedArray, weight?: Float32Array, rowLat?: Float32Array): void {
   for (let i = 0, p = 0; i < ir.length; i += 4, p++) {
-    const a = ir[i + 3]
-    if (!a) continue
-    const c = Math.min(1, Math.max(0, (Math.max(ir[i], ir[i + 1], ir[i + 2]) - IR_LO) / (IR_HI - IR_LO)))
-    const alpha = 255 * Math.pow(c, 1.3) * 0.92 * (a / 255) * (weight ? weight[p] : 1)
-    if (alpha <= out[i + 3]) continue // keep the clearer view where two satellites overlap
-    out[i] = 246; out[i + 1] = 248; out[i + 2] = 252; out[i + 3] = alpha
+    if (!ir[i + 3]) continue
+    const c = cleanIrTempC(ir[i], ir[i + 1], ir[i + 2])
+    if (Number.isNaN(c)) continue
+    const a = cloudAlpha(c + 273.15, rowLat ? rowLat[p >> 8] : 0)
+    if (a > 0) put(out, i, 255 * a * 0.92 * (weight ? weight[p] : 1))
   }
 }
 
 /**
- * Clouds from a true-colour daily picture: bright, nearly grey pixels (cloud, also snow and ice) become
- * white on transparency; coloured ground, sea and no-data black stay clear. weight fades it in.
+ * VIIRS I5 brightness temperature tile (GIBS palette, warm = bright) to white cloud, only where no
+ * earlier source has data yet (covered). Returns how many weighted pixels are still without data.
  */
-export function visToCloud(px: Uint8ClampedArray, out: Uint8ClampedArray, weight?: Float32Array): void {
+export function btToCloud(px: Uint8ClampedArray, out: Uint8ClampedArray, weight: Float32Array, rowLat: Float32Array, covered: Uint8Array): number {
+  let left = 0
   for (let i = 0, p = 0; i < px.length; i += 4, p++) {
-    const r = px[i], g = px[i + 1], b = px[i + 2]
-    const lo = Math.min(r, g, b), hi = Math.max(r, g, b)
-    if (hi < 60) continue
-    const bright = Math.min(1, Math.max(0, (lo - 120) / (215 - 120)))
-    const grey = 1 - Math.min(1, Math.max(0, ((hi - lo) / hi - 0.18) / 0.25))
-    const alpha = 255 * Math.pow(bright * grey, 1.2) * 0.9 * (weight ? weight[p] : 1)
-    if (alpha <= out[i + 3]) continue
-    out[i] = 246; out[i + 1] = 248; out[i + 2] = 252; out[i + 3] = alpha
+    if (covered[p] || weight[p] <= 0.001) continue
+    if (!px[i + 3]) { left++; continue }
+    covered[p] = 1
+    const a = cloudAlpha(viirsTempK(px[i], px[i + 1], px[i + 2]), rowLat[p >> 8])
+    if (a > 0) put(out, i, 255 * a * 0.92 * weight[p])
   }
+  return left
 }
 
 /** Per-pixel view weight of one satellite over a tile (1 = straight down, 0 = beyond its edge). */
@@ -233,6 +240,8 @@ const parse = (scheme: string, url: string) => {
 }
 
 type Urls = {
+  /** NASA VIIRS I5 brightness temperature (night or day pass) for a date */
+  bt: (layer: string, date: string, z: number, y: number, x: number) => string
   live: (date: string, z: number, y: number, x: number) => string
   backup: (z: number, y: number, x: number) => string
   geo: (layer: string, time: string, matrixSet: string, z: number, y: number, x: number) => string
@@ -261,8 +270,9 @@ export function installLiveProtocol(urls: Urls, backupMaxZoom = 8) {
     const c = makeCanvas(), scratch = makeCanvas()
     const ctx = c.getContext('2d') as Ctx | null, sctx = scratch.getContext('2d') as Ctx | null
     if (!ctx || !sctx) throw new Error('No 2D canvas')
-    const read = (img: ImageBitmap, crop?: { sx: number; sy: number; size: number }) => {
+    const read = (img: ImageBitmap, crop?: { sx: number; sy: number; size: number }, exact = false) => {
       sctx.clearRect(0, 0, 256, 256)
+      sctx.imageSmoothingEnabled = !exact // palette images must keep their exact colours
       if (crop) sctx.drawImage(img, crop.sx, crop.sy, crop.size, crop.size, 0, 0, 256, 256)
       else sctx.drawImage(img, 0, 0, 256, 256)
       return sctx.getImageData(0, 0, 256, 256).data
@@ -271,7 +281,7 @@ export function installLiveProtocol(urls: Urls, backupMaxZoom = 8) {
   }
 
   /** Newest daily picture for a tile: today, the days before, then dimmed Blue Marble. */
-  async function daily(date: string, z: number, y: number, x: number, signal: AbortSignal, read: (img: ImageBitmap, crop?: { sx: number; sy: number; size: number }) => Uint8ClampedArray, ctx: Ctx, withBackup = true) {
+  async function daily(date: string, z: number, y: number, x: number, signal: AbortSignal, read: (img: ImageBitmap, crop?: { sx: number; sy: number; size: number }, exact?: boolean) => Uint8ClampedArray, ctx: Ctx, withBackup = true) {
     let out: ImageData | null = null
     let missing = 256 * 256
     const add = (px: Uint8ClampedArray, dim = 1) => {
@@ -334,6 +344,8 @@ export function installLiveProtocol(urls: Urls, backupMaxZoom = 8) {
     const corners = [[0, 0], [255, 0], [0, 255], [255, 255], [128, 128]].map(([px, py]) => pixelLonLat(z, x, y, px, py))
     const sats = GEO_SATS.filter(s => corners.some(p => viewAngle(p.lat, p.lon, s.lon) < 72))
     const out = ctx.createImageData(256, 256)
+    const rowLat = new Float32Array(256)
+    for (let py = 0; py < 256; py++) rowLat[py] = pixelLonLat(z, x, y, 0, py).lat
     const found = sats.length ? await probe(time) : {}
     const gz = Math.min(z, 6), dz = Math.max(0, z - 6)
     const imgs = await Promise.all(sats.map(s => {
@@ -352,15 +364,20 @@ export function installLiveProtocol(urls: Urls, backupMaxZoom = 8) {
       const crop = dz ? { sx: (x % (1 << dz)) * (256 >> dz), sy: (y % (1 << dz)) * (256 >> dz), size: 256 >> dz } : undefined
       const w = satWeights(z, x, y, s.lon)
       for (let p = 0; p < w.length; p++) if (w[p] > seen[p]) seen[p] = w[p]
-      irToCloud(read(img, crop), out.data, w)
+      irToCloud(read(img, crop, true), out.data, w, rowLat)
     })
     if (date) {
       const rest = new Float32Array(256 * 256)
       let need = false
       for (let p = 0; p < rest.length; p++) { rest[p] = 1 - seen[p]; if (rest[p] > 0.001) need = true }
       if (need) {
-        const day = await daily(date, Math.min(z, 9), y, x, abort.signal, read, ctx, false)
-        if (day) visToCloud(day.data, out.data, rest)
+        // Newest first; the night pass is the one that sees polar night
+        const covered = new Uint8Array(256 * 256)
+        const yesterday = dayBefore(date, 1)
+        for (const [pass, d] of [['Day', date], ['Night', date], ['Day', yesterday], ['Night', yesterday]] as const) {
+          const img = await bitmap(urls.bt(`VIIRS_NOAA20_Brightness_Temp_BandI5_${pass}`, d, Math.min(z, 9), y, x), abort.signal, d === date)
+          if (img && !btToCloud(read(img, undefined, true), out.data, rest, rowLat, covered)) break
+        }
       }
     }
     if (sats.length) report(got > 0, newest || time)

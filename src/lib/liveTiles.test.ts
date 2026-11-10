@@ -37,7 +37,7 @@ describe('live satellite tiles', () => {
   })
 })
 
-import { cloudStamp, cloudTileUrl, geoWeight, irToCloud, pixelLonLat, stepBack, viewAngle, visToCloud } from './liveTiles'
+import { btToCloud, cloudStamp, cloudTileUrl, geoWeight, irToCloud, pixelLonLat, stepBack, viewAngle } from './liveTiles'
 
 describe('live clouds', () => {
   it('asks for the newest 10-minute picture that should exist, about 30 minutes back', () => {
@@ -61,35 +61,36 @@ describe('live clouds', () => {
     expect(p.lat).toBeCloseTo(-0.7, 0)
     expect(pixelLonLat(0, 0, 0, 0, 0).lat).toBeGreaterThan(84.9) // half a pixel below the 85.05° map edge
   })
-  it('turns bright infrared into white cloud and dark ground into transparency', () => {
-    const ir = new Uint8ClampedArray([40, 40, 40, 255, 230, 230, 230, 255, 155, 155, 155, 255, 255, 255, 255, 0])
+  it('turns cold infrared into white cloud and warm ground into transparency (GIBS Band 13 palette)', () => {
+    // warm grey (+42 °C ground), cold grey (-79.6 °C), mid grey (-12 °C), outside the disk
+    const ir = new Uint8ClampedArray([40, 40, 40, 255, 230, 230, 230, 255, 180, 180, 180, 255, 255, 255, 255, 0])
     const out = new Uint8ClampedArray(16)
     irToCloud(ir, out)
-    expect(out[3]).toBe(0) // warm ground: clear
-    expect(out[7]).toBeGreaterThan(220) // cold cloud tops: solid
+    expect(out[3]).toBe(0)
+    expect(out[7]).toBeGreaterThan(220)
     expect(out[11]).toBeGreaterThan(60)
-    expect(out[11]).toBeLessThan(160) // mid-level cloud: see-through
-    expect(out[15]).toBe(0) // outside the satellite's disk
+    expect(out[11]).toBeLessThan(180)
+    expect(out[15]).toBe(0)
     const half = new Uint8ClampedArray(16)
     irToCloud(ir, half, new Float32Array([1, 0.5, 1, 1]))
     expect(half[7]).toBeLessThan(out[7]) // near the disk edge clouds fade
   })
-})
-
-describe('clouds from the daily picture', () => {
-  it('keeps white cloud, drops sea, sand, forest and no-data', () => {
-    // cloud, deep sea, desert sand, forest, no-data black
-    const px = new Uint8ClampedArray([230, 232, 236, 255, 20, 45, 90, 255, 205, 170, 125, 255, 50, 90, 40, 255, 0, 0, 0, 255])
-    const out = new Uint8ClampedArray(px.length)
-    visToCloud(px, out)
-    expect(out[3]).toBeGreaterThan(180)
+  it('draws the coldest storm tops as solid cloud, not holes', () => {
+    // dark red (-69.6 °C), red (-60.6), near-black (-70.6), magenta (-90.6): dark colours, coldest clouds
+    const ir = new Uint8ClampedArray([26, 0, 0, 255, 255, 0, 0, 255, 5, 5, 5, 255, 127, 0, 127, 255])
+    const out = new Uint8ClampedArray(16)
+    irToCloud(ir, out)
+    for (const i of [3, 7, 11, 15]) expect(out[i]).toBeGreaterThan(220)
+  })
+  it('fills VIIRS infrared clouds only where nothing else has data', () => {
+    // VIIRS palette: navy = 190 K (cold cloud), beige = 300 K (warm ground), no data
+    const px = new Uint8ClampedArray([19, 33, 100, 255, 244, 220, 190, 255, 0, 0, 0, 0])
+    const out = new Uint8ClampedArray(12)
+    const covered = new Uint8Array(3)
+    const left = btToCloud(px, out, new Float32Array([1, 1, 1]), new Float32Array(256), covered)
+    expect(out[3]).toBeGreaterThan(220)
     expect(out[7]).toBe(0)
-    expect(out[11]).toBeLessThan(30)
-    expect(out[15]).toBe(0)
-    expect(out[19]).toBe(0)
-    const faded = new Uint8ClampedArray(px.length)
-    visToCloud(px, faded, new Float32Array([0.25, 1, 1, 1, 1]))
-    expect(faded[3]).toBeLessThan(out[3]) // fades out where a satellite takes over
+    expect(left).toBe(1) // the empty pixel still needs an older pass
+    expect(Array.from(covered)).toEqual([1, 1, 0])
   })
 })
-

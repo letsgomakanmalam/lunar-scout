@@ -27,6 +27,7 @@ interface Props {
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
 const FALLBACK: StyleSpecification = { version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#02040a' } }] }
 const BLUE = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg'
+const BT = (layer: string, date: string, z: number, y: number, x: number) => `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer}/default/${date}/GoogleMapsCompatible_Level9/${z}/${y}/${x}.png`
 const GEO = (layer: string, time: string, set: string, z: number, y: number, x: number) => `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer}/default/${time}/${set}/${z}/${y}/${x}.png`
 const VIIRS = (date: string) => `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_NOAA20_CorrectedReflectance_TrueColor/default/${date}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`
 const S2 = 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg'
@@ -91,7 +92,7 @@ function install(map: MLMap, date: string, liveUrl: string, cloudUrl: string) {
   // Live Earth: cloud-free ground plus clouds from three geostationary satellites, every 10 minutes
   // The same cloud-free ground everywhere, so colours match from pole to pole; the live shadow darkens night
   map.addSource('ls-now', { type: 'raster', tiles: [BLUE], tileSize: 256, maxzoom: 8, attribution: 'NASA GIBS Blue Marble' })
-  map.addSource('ls-clouds', { type: 'raster', tiles: [cloudUrl], tileSize: 256, maxzoom: 7, attribution: 'Live clouds: NOAA GOES-East, GOES-West and JMA Himawari infrared via NASA GIBS; elsewhere NASA VIIRS daily' })
+  map.addSource('ls-clouds', { type: 'raster', tiles: [cloudUrl], tileSize: 256, maxzoom: 7, attribution: 'Live clouds: NOAA GOES-East, GOES-West and JMA Himawari infrared via NASA GIBS; elsewhere NASA VIIRS infrared' })
   const hidden = { visibility: 'none' as const }
   map.addLayer({ id: 'ls-blue', type: 'raster', source: 'ls-blue', layout: hidden }, aboveBackground)
   map.addLayer({ id: 'ls-s2', type: 'raster', source: 'ls-s2', layout: hidden }, aboveBackground)
@@ -203,7 +204,7 @@ export default function EarthMap({ selectedId, scannedIds, onSelect, sites = EAR
   useEffect(() => {
     if (!box.current) return
     let map: MLMap
-    installLiveProtocol({ live: (d, z, y, x) => tile(VIIRS(d), z, y, x), backup: (z, y, x) => tile(BLUE, z, y, x), geo: GEO })
+    installLiveProtocol({ live: (d, z, y, x) => tile(VIIRS(d), z, y, x), backup: (z, y, x) => tile(BLUE, z, y, x), geo: GEO, bt: BT })
     try {
       map = new maplibregl.Map({
         container: box.current, style: STYLE_URL, center: [20, 20], zoom: 1.2, maxZoom: 18,
@@ -553,7 +554,7 @@ export default function EarthMap({ selectedId, scannedIds, onSelect, sites = EAR
       <div className="map-foot" aria-hidden="true">
         {(base === 'live' || base === 'daily' || prefs.dayNight) && (
           <span className="map-live" title={base === 'live'
-            ? `Clouds from NOAA GOES-East, GOES-West and JMA Himawari infrared pictures (via NASA GIBS), refreshed every 10 minutes by your computer's clock, over a cloud-free Blue Marble. Europe, Africa and the poles have no geostationary picture, so their clouds come from NASA's newest daily picture.`
+            ? `Clouds from NOAA GOES-East, GOES-West and JMA Himawari infrared pictures (via NASA GIBS), refreshed every 10 minutes by your computer's clock, over a cloud-free Blue Marble. Europe, Africa and the poles have no geostationary picture, so their clouds come from NASA's VIIRS infrared night and day passes, which also see clouds in polar night.`
             : base === 'daily' ? `NASA VIIRS pictures for your computer's date, ${dateLabel}, refreshed every hour. Places today's orbits have not reached yet come from the two days before; where there is no recent picture at all, such as polar night, NASA's Blue Marble shows through, dimmed.` : undefined}><span className="dot" />{base === 'live'
               ? (clouds?.ok && clouds.time ? `Live Earth, clouds at ${new Date(clouds.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · now ${time}` : clouds && !clouds.ok ? `Live Earth, no cloud picture yet · ${time}` : `Live Earth · ${time}`)
               : base === 'daily' ? `Daily satellite, ${dateLabel} · ${time}` : `Live day and night, ${time}`}</span>
