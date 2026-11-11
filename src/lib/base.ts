@@ -110,6 +110,7 @@ export const SCORE_RULES: Record<ModuleId, ScoreRule> = {
   rover: { base: 4, near: { pad: 3, lab: 2, ice: 2 } },
   oxygen: { base: 5, near: { ice: 4, habitat: 2, farm: 2 } },
   printer: { base: 6, near: { habitat: 3, rover: 2, lab: 2 } },
+  reactor: { base: 5, near: { habitat: -5, farm: -4, lab: -2, battery: 2, power: 1 } },
   telescope: { base: 14, near: { power: 0, battery: 0, comms: -6, pad: -6 }, other: -2 },
 }
 

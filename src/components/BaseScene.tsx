@@ -16,6 +16,8 @@ export interface SceneProps {
   preview: (cell: number) => number | null
   onCell: (cell: number) => void
   onFail: () => void
+  /** Sun from the mission simulation (elevation and direction in degrees, light 0..1); null for the default view */
+  sun?: { elev: number; az: number; light: number; dark: boolean } | null
 }
 
 /**
@@ -45,6 +47,7 @@ type Theme = (typeof THEMES)[BaseTheme]
 const TILE = 2
 const HALF = (GRID_SIZE * TILE) / 2
 const SUN = new THREE.Vector3(-30, 22, 18).normalize()
+const RAD3 = Math.PI / 180
 const centre = (i: number) => new THREE.Vector3((i % GRID_SIZE) * TILE - HALF + TILE / 2, 0, Math.floor(i / GRID_SIZE) * TILE - HALF + TILE / 2)
 const cellAt = (x: number, z: number) => {
   const c = Math.floor((x + HALF) / TILE), r = Math.floor((z + HALF) / TILE)
@@ -250,6 +253,19 @@ const MODELS: Record<ModuleId, (p: Pal, lv: 1 | 2) => THREE.Group> = {
     blink(part(g, new THREE.SphereGeometry(0.04, 6, 4), p.lamp, 0.2, 1.15, 0))
     return g
   },
+  reactor: (p, lv) => {
+    // NASA Fission Surface Power concept: a shielded core with radiator fins that shed its waste heat
+    const g = new THREE.Group()
+    part(g, new THREE.CylinderGeometry(0.34, 0.42, 0.46, 18), p.hull2, 0, 0.23, 0)
+    part(g, new THREE.CylinderGeometry(0.22, 0.34, 0.3, 18), p.hull, 0, 0.61, 0)
+    part(g, new THREE.CylinderGeometry(0.05, 0.05, 0.5, 8), p.metal, 0, 0.98, 0)
+    const fins = lv === 1 ? 4 : 6
+    for (let k = 0; k < fins; k++) {
+      const a = (k / fins) * Math.PI * 2 + Math.PI / 4
+      part(g, new THREE.BoxGeometry(0.035, 0.66, 0.46), p.foil, Math.cos(a) * 0.6, 0.4, Math.sin(a) * 0.6, 0, -a, 0)
+    }
+    return g
+  },
   telescope: (p, lv) => {
     const g = new THREE.Group()
     part(g, new THREE.CylinderGeometry(0.25, 0.36, 0.45, 8), p.hull2, 0, 0.22, 0)
@@ -358,7 +374,8 @@ export default function BaseScene(props: SceneProps) {
     Object.assign(sun.shadow.camera, { left: -15, right: 15, top: 15, bottom: -15, near: 1, far: 110 })
     sun.shadow.bias = -0.0004
     sun.shadow.normalBias = 0.03
-    scene.add(sun, new THREE.HemisphereLight(T.sky, T.ground, T.hemiI), new THREE.AmbientLight('#ffffff', T.amb))
+    const hemi = new THREE.HemisphereLight(T.sky, T.ground, T.hemiI), amb = new THREE.AmbientLight('#ffffff', T.amb)
+    scene.add(sun, hemi, amb)
 
     const p = palette(T)
     const rnd = mulberry32(17)
@@ -692,6 +709,18 @@ export default function BaseScene(props: SceneProps) {
       if (hovered >= 0 && label.current) {
         tmp.copy(centre(hovered)).setY(2.1).project(camera)
         label.current.style.transform = `translate(${(tmp.x * 0.5 + 0.5) * el.clientWidth}px, ${(-tmp.y * 0.5 + 0.5) * el.clientHeight}px) translate(-50%, -100%)`
+      }
+      // Mission simulation: the real Sun for this hour (at the Moon's pole it skims the horizon)
+      const ss = live.current.sun
+      if (ss) {
+        const el = Math.max(3, ss.elev) * RAD3, az = ss.az * RAD3
+        sun.position.set(Math.cos(az) * Math.cos(el), Math.sin(el), Math.sin(az) * Math.cos(el)).multiplyScalar(45)
+        sun.intensity = T.sunI * ss.light
+        hemi.intensity = T.hemiI * (ss.dark ? 0.3 : 0.55 + 0.45 * ss.light)
+        amb.intensity = T.amb * (ss.dark ? 0.7 : 1)
+      } else {
+        sun.position.copy(SUN).multiplyScalar(45)
+        sun.intensity = T.sunI; hemi.intensity = T.hemiI; amb.intensity = T.amb
       }
       renderer.render(scene, camera)
       if (!t0) t0 = performance.now()

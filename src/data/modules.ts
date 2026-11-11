@@ -26,6 +26,7 @@ export const MODULES: ModuleDef[] = [
   { id: 'rover', name: 'Rover garage', icon: '🚙', energy: 3, cost: 70, upgradeCost: 90, power: [-1, -2], description: 'Shelters a pressurized rover. Unlocked by the rover mission.', startsUnlocked: false },
   { id: 'oxygen', name: 'Oxygen plant', icon: '🫧', energy: 4, cost: 80, upgradeCost: 110, power: [-2, -3], description: 'Splits water from the ice into oxygen to breathe and hydrogen for fuel.', startsUnlocked: false },
   { id: 'printer', name: 'Regolith printer', icon: '🏗️', energy: 4, cost: 90, upgradeCost: 120, power: [-2, -3], description: 'Prints shelters and roads from local dust (regolith), so less has to come from Earth.', startsUnlocked: false },
+  { id: 'reactor', name: 'Fission reactor', icon: '⚛️', energy: 6, cost: 140, upgradeCost: 180, power: [8, 12], description: "Steady power through long nights and dust storms, like NASA's planned 40 kW Fission Surface Power. Radiation means homes and farms next to it lose points.", startsUnlocked: false },
   { id: 'telescope', name: 'Radio telescope', icon: '🔭', energy: 5, cost: 120, upgradeCost: 150, power: [-1, -1], description: 'Listens to the early universe from a quiet world, far from the radio noise of Earth. Needs peace: other buildings nearby cost points.', startsUnlocked: false },
 ]
 

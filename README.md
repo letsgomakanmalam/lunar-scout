@@ -18,6 +18,14 @@ Built for the NASA Space Apps Challenge 2026 challenge **"Identify Earth Locatio
 - **Reports**: download an Analog Passport (Markdown and JSON) for any site, or a twin report for any Moon or Mars site.
 - **Judge mode**: the Missions screen has a switch that opens all 13 missions at once.
 
+## Base mission simulation
+On the Base screen, **Simulate 60 days** runs your base hour by hour at its real landing site, in its hardest season (`src/lib/baseSim.ts`). The 3D Sun follows the timeline, so at the Moon's south pole you can watch it skim the horizon.
+- Light: the Shackleton ridge horizon is fitted to the published figures (about 88% sunlit over a year, dark spells of 3 to 5 days); Malapert and Mons Mouton are estimated from latitude and summit height; Marius Hills has 14.8-day nights; Mars has 24.66-hour sols, winter sunlight and a regional dust storm.
+- Hardware: 10 kW solar arrays (NASA VSAT), 100 kWh batteries or 300 kWh fuel cells, and a new **Fission reactor** module (40 kW day and night, NASA Fission Surface Power). Habitats need extra heat in the dark.
+- Crew: 0.82 kg oxygen, 1.8 kg food and about 0.5 kg water lost per person per day (NASA BVAD). Ice extractors, oxygen plants (from water on the Moon, from CO₂ on Mars like MOXIE), greenhouses and cargo landers every 30 days keep them supplied.
+- Radiation: 1.37 mSv a day on the Moon (Chang'e 4), 0.64 on Mars (Curiosity), cut by regolith-printer berms and almost removed inside a lava tube; shown against NASA's 600 mSv career limit.
+- The result says if and when the base fails and why, with concrete advice (how many batteries, or more power when the base is short even in sunlight).
+
 ## Rebuild the global search and findings
 - `npm run grid` (needs Python with `pip install kgcpy geonamescache scipy numpy pillow` and an internet connection for Natural Earth and the volcano list) rebuilds `public/data/earth-grid.bin` and `.json` from open data. See the top of `scripts/build-earth-grid.py` for exactly what goes in.
 - `npm run findings` regenerates `FINDINGS.md` from that grid with the app's own scoring code.

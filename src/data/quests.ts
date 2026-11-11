@@ -66,6 +66,7 @@ export const TECH: Tech[] = [
   { id: 'oxygen', requires: ['water', 'harvest'], rp: 80, tier: 3 },
   { id: 'printer', requires: ['crew4', 'score-120'], rp: 90, tier: 3 },
   { id: 'telescope', requires: ['stars6', 'surplus'], rp: 120, tier: 3 },
+  { id: 'reactor', requires: ['surplus', 'score-120'], rp: 100, tier: 3 },
 ]
 
 export const techFor = (id: ModuleId) => TECH.find(t => t.id === id)

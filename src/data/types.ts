@@ -114,7 +114,7 @@ export interface PlanetTarget {
 /** Kept so older imports still read naturally. */
 export type LunarTarget = PlanetTarget
 
-export type ModuleId = 'habitat' | 'power' | 'comms' | 'farm' | 'battery' | 'pad' | 'lab' | 'ice' | 'rover' | 'oxygen' | 'printer' | 'telescope'
+export type ModuleId = 'habitat' | 'power' | 'comms' | 'farm' | 'battery' | 'pad' | 'lab' | 'ice' | 'rover' | 'oxygen' | 'printer' | 'telescope' | 'reactor'
 
 export interface Mission {
   id: string

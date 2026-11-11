@@ -73,3 +73,18 @@ Only the probed coordinates are sent to these services. Caves and remoteness are
 Infrared works day and night. GIBS draws these layers with colour palettes (colormaps/v1.3/Clean_Longwave_Infrared_Window_Band.xml and VIIRS_Brightness_Temp_BandI5.xml), so the app decodes each colour back to a brightness temperature, then treats cold pixels as cloud. The clear-sky cut-off is 285 K at the equator, falling by 0.55 K per degree of latitude, because the ground itself is very cold near the poles. Images are decoded without colour management; black in VIIRS tiles (scan gaps, missing swaths) counts as missing data, thin scan gaps are bridged from neighbouring rows, a cold-band grey only counts as cold when it connects to a storm's coloured bands, and lone cloud pixels are removed.
 
 A commercial version would need a licence for Sentinel-2 cloudless (or a different satellite layer).
+
+## Base mission simulation (src/lib/baseSim.ts)
+| Value | Used for | Source |
+|---|---|---|
+| About 88% sunlit over a year, dark spells of 3 to 5 days | Shackleton ridge light (horizon fitted to these) | Published illumination studies of the connecting ridge |
+| 10 kW per solar array | Array output | NASA Vertical Solar Array Technology (VSAT) target |
+| 40 kW, day and night | Fission reactor module | NASA Fission Surface Power target |
+| 0.82 kg O₂, 1.8 kg food, about 0.5 kg net water per person per day | Crew needs | NASA Baseline Values and Assumptions Document (BVAD) |
+| 1.37 mSv/day on the Moon | Surface radiation | Chang'e 4 Lunar Lander Neutrons and Dosimetry (Zhang et al. 2020) |
+| 0.64 mSv/day on Mars | Surface radiation | Curiosity RAD (Hassler et al. 2014) |
+| 600 mSv | Career limit shown | NASA-STD-3001 |
+| 715 W/m² above Mars' air, dust optical depth 0.5 to 0.6, storm peak 4 | Mars sunlight | Mars orbit near perihelion; typical and regional-storm dust |
+
+Module power draws, storage sizes and production rates are simplified engineering estimates in the right range, not a flight design.
+

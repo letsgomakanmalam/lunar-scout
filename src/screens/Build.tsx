@@ -13,6 +13,7 @@ import Icon, { MODULE_ICON } from '../components/Icon'
 import { sfx } from '../lib/sfx'
 
 const BaseScene = lazy(() => import('../components/BaseScene'))
+import BaseSim, { type SimSun } from '../components/BaseSim'
 const EMPTY = emptyGrid()
 
 /** If the 3D code can't load (for example three.js was never installed), fall back instead of breaking the page. */
@@ -45,7 +46,8 @@ export default function Build() {
   const [selected, setSelected] = useState<ModuleId | null>('habitat')
   const [focus, setFocus] = useState<number | null>(null)
   const [view, setView] = useState<'3d' | 'plan'>('3d')
-  const [drawer, setDrawer] = useState<null | 'quests' | 'tech' | 'site'>(null)
+  const [drawer, setDrawer] = useState<null | 'quests' | 'tech' | 'site' | 'sim'>(null)
+  const [simSun, setSimSun] = useState<SimSun | null>(null)
   const [toast, setToast] = useState<{ id: number; text: string; kind: 'good' | 'bad' | 'goal' } | null>(null)
   const [now, setNow] = useState(() => Date.now())
 
@@ -147,7 +149,7 @@ export default function Build() {
         {view === '3d' ? (
           <SceneBoundary onError={() => { setView('plan'); say('The 3D view could not load. Double-click start-dev.bat (or run npm install), then reload.', 'bad') }}>
             <Suspense fallback={<div className="base-loading">Preparing the base site…</div>}>
-              <BaseScene key={theme} theme={theme} grid={g.grid} selected={selected} focus={focus} preview={preview} onCell={onCell}
+              <BaseScene key={theme} theme={theme} grid={g.grid} selected={selected} focus={focus} preview={preview} onCell={onCell} sun={drawer === 'sim' ? simSun : null}
                 onFail={() => { setView('plan'); say('3D is not available on this device, so here is the plan view.', 'bad') }} />
             </Suspense>
           </SceneBoundary>
@@ -182,6 +184,7 @@ export default function Build() {
           <span className="chip"><Icon name="crew" size={14} />Crew {crewCapacity(g.grid)}</span>
           <span className="chip"><Icon name="grid" size={14} />{g.grid.filter(Boolean).length}/{GRID_SIZE * GRID_SIZE}</span>
           <button className="chip chip-btn" onClick={() => setView(v => (v === '3d' ? 'plan' : '3d'))}>{view === '3d' ? '2D plan' : '3D view'}</button>
+          <button className="chip chip-btn sim-chip" onClick={() => setDrawer('sim')} title="Run your base for 60 days at its real site"><Icon name="play" size={12} />Simulate 60 days</button>
           {view === '3d' && landing.world === 'moon' && <button className="chip chip-btn" onClick={() => g.setBaseTheme(g.baseTheme === 'moon' ? 'cosy' : 'moon')} title="Switch how the base looks">Style: {g.baseTheme === 'moon' ? 'Moon' : 'cosy sea'}</button>}
         </section>
       </div>
@@ -244,9 +247,9 @@ export default function Build() {
       {drawer && (
         <aside className="base-drawer cut" aria-label="Quests and technology">
           <div className="bd-tabs" role="tablist">
-            {(['quests', 'tech', 'site'] as const).map(t => (
+            {(['quests', 'tech', 'sim', 'site'] as const).map(t => (
               <button key={t} role="tab" aria-selected={drawer === t} className={drawer === t ? 'on' : ''} onClick={() => setDrawer(t)}>
-                {t === 'quests' ? <>Quests{claimable.length > 0 && <span className="bd-count">{claimable.length}</span>}</> : t === 'tech' ? 'Technology' : 'Site'}
+                {t === 'quests' ? <>Quests{claimable.length > 0 && <span className="bd-count">{claimable.length}</span>}</> : t === 'tech' ? 'Technology' : t === 'sim' ? 'Simulate' : 'Site'}
               </button>
             ))}
             <button className="pc-close" aria-label="Close" data-sfx="back" onClick={() => setDrawer(null)}><Icon name="cross" size={16} /></button>
@@ -314,6 +317,8 @@ export default function Build() {
               ))}
             </div>
           )}
+
+          {drawer === 'sim' && <BaseSim grid={g.grid} site={landing} onSun={setSimSun} />}
 
           {drawer === 'site' && (
             <div className="site-info">

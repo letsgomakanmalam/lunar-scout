@@ -55,6 +55,8 @@ const PATHS = {
   twins: <><circle cx="7" cy="12" r="4.5" /><circle cx="17" cy="12" r="4.5" /><path d="M11.5 12h1M4.5 9.5c1.5.8 3.5.8 5 0M14.5 14.5c1.5-.8 3.5-.8 5 0" /></>,
   download: <path d="M12 3.5v11.5M7 10.5l5 5 5-5M4.5 20h15" />,
   sun: <><path d="M3 18h18" /><path d="M7.5 18a4.5 4.5 0 0 1 9 0" /><path d="M12 9.5v2M5.6 12.4l1.4 1.4M18.4 12.4L17 13.8M3.5 21h17" /></>,
+  pause: <><rect x="6.5" y="5.5" width="3.6" height="13" rx=".8" fill="currentColor" stroke="none" /><rect x="13.9" y="5.5" width="3.6" height="13" rx=".8" fill="currentColor" stroke="none" /></>,
+  atom: <><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none" /><ellipse cx="12" cy="12" rx="9.2" ry="3.6" /><ellipse cx="12" cy="12" rx="9.2" ry="3.6" transform="rotate(60 12 12)" /><ellipse cx="12" cy="12" rx="9.2" ry="3.6" transform="rotate(-60 12 12)" /></>,
   pin: <><path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11z" /><circle cx="12" cy="10" r="2.3" /></>,
 } satisfies Record<string, ReactNode>
 
@@ -62,7 +64,7 @@ export type IconName = keyof typeof PATHS
 
 export const MODULE_ICON: Record<ModuleId, IconName> = {
   habitat: 'habitat', power: 'solar', comms: 'dish', lab: 'flask', ice: 'ice', rover: 'rover',
-  farm: 'farm', battery: 'battery', pad: 'pad', oxygen: 'oxygen', printer: 'printer', telescope: 'telescope',
+  farm: 'farm', battery: 'battery', pad: 'pad', oxygen: 'oxygen', printer: 'printer', telescope: 'telescope', reactor: 'atom',
 }
 
 export default function Icon({ name, size = 20, className, title }: { name: IconName; size?: number; className?: string; title?: string }) {
