@@ -5,7 +5,7 @@ import { CAUSE_TEXT, SIM_DAYS, simulateBase } from '../lib/baseSim'
 import Icon from './Icon'
 
 /** Where the Sun is in the simulation, for the 3D scene's light. */
-export interface SimSun { elev: number; az: number; light: number; dark: boolean }
+export interface SimSun { elev: number; az: number; light: number; dark: boolean; hour: number; failed: boolean }
 
 interface Props {
   grid: BaseGrid
@@ -44,7 +44,7 @@ export default function BaseSim({ grid, site, onSun }: Props) {
   // The 3D Sun follows the timeline while this panel is open
   useEffect(() => {
     const light = mars ? Math.min(1, r.light[t] / MARS_FULL) : r.light[t]
-    onSun({ elev: r.elev[t], az: r.az[t], light, dark: mars ? r.elev[t] <= 0 : r.light[t] < 0.5 })
+    onSun({ elev: r.elev[t], az: r.az[t], light, dark: mars ? r.elev[t] <= 0 : r.light[t] < 0.5, hour: t, failed: !!r.failed && t >= r.failed.hour })
   }, [t, r, mars, onSun])
   useEffect(() => () => onSun(null), [onSun])
 

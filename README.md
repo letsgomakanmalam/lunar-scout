@@ -24,6 +24,7 @@ On the Base screen, **Simulate 60 days** runs your base hour by hour at its real
 - Hardware: 10 kW solar arrays (NASA VSAT), 100 kWh batteries or 300 kWh fuel cells, and a new **Fission reactor** module (40 kW day and night, NASA Fission Surface Power). Habitats need extra heat in the dark.
 - Crew: 0.82 kg oxygen, 1.8 kg food and about 0.5 kg water lost per person per day (NASA BVAD). Ice extractors, oxygen plants (from water on the Moon, from CO₂ on Mars like MOXIE), greenhouses and cargo landers every 30 days keep them supplied.
 - Radiation: 1.37 mSv a day on the Moon (Chang'e 4), 0.64 on Mars (Curiosity), cut by regolith-printer berms and almost removed inside a lava tube; shown against NASA's 600 mSv career limit.
+- Life at the base: one astronaut per crew member walks between the modules and works at them (a slow, bouncing gait on the Moon), and with a rover garage a pressurized rover drives a loop around the base. Their behaviour follows time (`src/lib/baseLife.ts`, drawn by `src/components/baseLife3d.ts`): in the simulation the rover does one lap per 8-hour daytime shift and parks in the dark, so dragging the timeline moves it; the crew switch on helmet lamps and go inside when the base goes dark or life support fails, and come back out at sunrise.
 - The result says if and when the base fails and why, with concrete advice (how many batteries, or more power when the base is short even in sunlight).
 
 ## Rebuild the global search and findings

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GRID_SIZE, type BaseGrid, type PlacedModule } from '../lib/base'
+import { createBaseLife } from './baseLife3d'
 import type { ModuleId } from '../data/types'
 import { mulberry32 } from '../lib/moonTexture'
 import { isLowPower, prefersReducedMotion } from '../lib/motion'
@@ -17,7 +18,7 @@ export interface SceneProps {
   onCell: (cell: number) => void
   onFail: () => void
   /** Sun from the mission simulation (elevation and direction in degrees, light 0..1); null for the default view */
-  sun?: { elev: number; az: number; light: number; dark: boolean } | null
+  sun?: { elev: number; az: number; light: number; dark: boolean; hour?: number; failed?: boolean } | null
 }
 
 /**
@@ -456,7 +457,7 @@ export default function BaseScene(props: SceneProps) {
       scene.add(isle)
     }
     for (let k = 0; k < 8; k++) { // spires on the edges of the base plateau, clear of the plots
-      const ang = Math.floor(k / 2) * (Math.PI / 2) + (k % 2 ? 0.38 : -0.32) + rnd() * 0.1, d = 7.1 + rnd() * 0.4
+      const ang = Math.floor(k / 2) * (Math.PI / 2) + (k % 2 ? 0.38 : -0.32) + rnd() * 0.1, d = 7.95 + rnd() * 0.2 // clear of the rover's loop
       if (T.ice && k % 3 === 0) spire(scene, Math.cos(ang) * d, Math.sin(ang) * d, 0.6 + rnd() * 0.6, 0.12, iceMat)
       else spire(scene, Math.cos(ang) * d, Math.sin(ang) * d, 0.8 + rnd() * 1.2, 0.22 + rnd() * 0.12, k % 2 ? spireA : spireB)
     }
@@ -530,6 +531,8 @@ export default function BaseScene(props: SceneProps) {
 
     // Buildings
     const models = new Map<number, { obj: THREE.Group; key: string }>()
+    // Astronauts walking between modules and a rover driving its loop (lib/baseLife)
+    const life = createBaseLife(scene, { mars: live.current.theme === 'mars' })
     const anims: { obj: THREE.Object3D; t0: number; kind: 'drop' | 'pop' | 'out' }[] = []
     const dust: { mesh: THREE.Mesh; v: THREE.Vector3; t0: number }[] = []
     const dustGeo = new THREE.SphereGeometry(0.09, 5, 3)
@@ -565,6 +568,7 @@ export default function BaseScene(props: SceneProps) {
         }
       })
       first = false
+      life.sync(grid)
     }
     const setGhost = (id: ModuleId | null) => {
       if (ghost) { scene.remove(ghost); disposeTree(ghost); ghost = null }
@@ -712,6 +716,7 @@ export default function BaseScene(props: SceneProps) {
       }
       // Mission simulation: the real Sun for this hour (at the Moon's pole it skims the horizon)
       const ss = live.current.sun
+      life.update(now, ss ? { hour: ss.hour, dark: ss.dark, failed: ss.failed } : null)
       if (ss) {
         const el = Math.max(3, ss.elev) * RAD3, az = ss.az * RAD3
         sun.position.set(Math.cos(az) * Math.cos(el), Math.sin(el), Math.sin(az) * Math.cos(el)).multiplyScalar(45)
@@ -728,6 +733,7 @@ export default function BaseScene(props: SceneProps) {
     frame()
 
     return () => {
+      life.dispose()
       cancelAnimationFrame(raf)
       ro.disconnect()
       cv.removeEventListener('pointermove', onMove)
