@@ -1,4 +1,4 @@
-import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
+import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { claimableQuests, energyNow, questContext, useGame, type BuildResult } from '../store'
 import { MODULES, moduleById } from '../data/modules'
 import { MISSIONS } from '../data/missions'
@@ -11,6 +11,7 @@ import {
 import type { ModuleId } from '../data/types'
 import Icon, { MODULE_ICON } from '../components/Icon'
 import { sfx } from '../lib/sfx'
+import { DUTY_TEXT, SPEEDS, clockOf, frameFor, initLive, type BedState, type Duty } from '../lib/baseLive'
 
 const BaseScene = lazy(() => import('../components/BaseScene'))
 import BaseSim, { type SimSun } from '../components/BaseSim'
@@ -25,6 +26,24 @@ class SceneBoundary extends Component<{ onError: () => void; children: ReactNode
 }
 
 const mmss = (ms: number) => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }
+const STAGE_TEXT: Record<BedState['stage'], string> = { empty: 'Waiting to be sown', sown: 'Just sown', sprout: 'Sprouting', growing: 'Growing', ripe: 'Nearly ready', harvest: 'Being harvested' }
+
+/** The beds of one greenhouse: what grows in each, how far along it is and when it is picked. */
+function Beds({ beds }: { beds: BedState[] }) {
+  return (
+    <ul className="beds">
+      {beds.map((b, k) => (
+        <li key={k} className={`bed st-${b.stage}`} title={b.crop.note}>
+          <span className="bed-name">{b.crop.name}</span>
+          <span className="bed-bar"><i style={{ width: `${Math.round(b.growth * 100)}%` }} /></span>
+          <span className="bed-when">{b.stage === 'empty' ? `sown in ${Math.max(1, Math.ceil(b.left - b.crop.days))} d` : b.stage === 'harvest' ? `${b.yieldKg.toFixed(1)} kg picked` : `day ${Math.floor(b.day) + 1} of ${b.crop.days}`}</span>
+          <span className="bed-stage">{STAGE_TEXT[b.stage]}{b.harvests > 0 ? `, ${b.harvests} harvest${b.harvests > 1 ? 's' : ''} so far` : ''}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n)}`
 
 function ScoreRing({ score, from, to, done }: { score: number; from: number; to: number; done: boolean }) {
@@ -46,13 +65,34 @@ export default function Build() {
   const [selected, setSelected] = useState<ModuleId | null>('habitat')
   const [focus, setFocus] = useState<number | null>(null)
   const [view, setView] = useState<'3d' | 'plan'>('3d')
-  const [drawer, setDrawer] = useState<null | 'quests' | 'tech' | 'site' | 'sim'>(null)
+  const [drawer, setDrawer] = useState<null | 'quests' | 'tech' | 'site' | 'sim' | 'life'>(null)
   const [simSun, setSimSun] = useState<SimSun | null>(null)
   const [toast, setToast] = useState<{ id: number; text: string; kind: 'good' | 'bad' | 'goal' } | null>(null)
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(id) }, [])
   useEffect(() => { g.settle() }, [now]) // eslint-disable-line react-hooks/exhaustive-deps
+  // The mission clock: the base lives on, hour by hour, while this screen is open (and catches up after a break)
+  useEffect(() => {
+    if (!g.landingId) return
+    g.tickLive()
+    const id = setInterval(() => { if (!document.hidden) g.tickLive() }, 500)
+    return () => clearInterval(id)
+  }, [g.landingId]) // eslint-disable-line react-hooks/exhaustive-deps
+  const site = g.landingId ? targetById(g.landingId) : null
+  const liveState = useMemo(() => (site ? (g.live && g.live.site === site.id ? g.live : initLive(g.grid, site)) : null), [g.live, g.grid, site])
+  const frame = useMemo(() => {
+    if (!site || !liveState) return null
+    return drawer === 'sim' && simSun ? frameFor(g.grid, site, simSun.snap) : frameFor(g.grid, site, liveState)
+  }, [site, liveState, g.grid, drawer, simSun])
+  // News from the base (a harvest, a cargo lander, sunset) pops up as it happens
+  const lastNews = useRef<number | null>(null)
+  useEffect(() => {
+    const top = liveState?.log[0]
+    if (!top) { lastNews.current = liveState ? -1 : null; return }
+    if (lastNews.current !== null && top.h > lastNews.current && drawer !== 'sim') setToast({ id: Date.now(), text: top.text, kind: top.kind === 'bad' ? 'bad' : 'good' })
+    lastNews.current = top.h
+  }, [liveState, drawer])
   useEffect(() => {
     if (!toast) return
     const id = setTimeout(() => setToast(null), toast.kind === 'goal' ? 4200 : 2400)
@@ -82,7 +122,7 @@ export default function Build() {
         <div className="base-view" aria-hidden="true">
           <SceneBoundary onError={() => {}}>
             <Suspense fallback={null}>
-              <BaseScene key={g.baseTheme} theme={g.baseTheme} grid={EMPTY} selected={null} focus={null} preview={() => null} onCell={() => {}} onFail={() => {}} />
+              <BaseScene key={g.baseTheme} theme={g.baseTheme} grid={EMPTY} live={null} selected={null} focus={null} preview={() => null} onCell={() => {}} onFail={() => {}} />
             </Suspense>
           </SceneBoundary>
         </div>
@@ -111,6 +151,21 @@ export default function Build() {
   const has = (id: ModuleId) => g.grid.some(c => c?.id === id)
   const missing = [!has('habitat') && 'a habitat', !has('comms') && 'a comms tower', power.net < 0 && 'more power'].filter(Boolean) as string[]
   const focused = focus != null ? g.grid[focus] : null
+  const focusLive = focus != null ? frame?.cells[focus] ?? null : null
+  const testing = drawer === 'sim' && !!simSun
+  const unit = landing.world === 'mars' ? 'Sol' : 'Day'
+  const sunText = !frame ? '' : frame.mars
+    ? (frame.storm ? 'Dust storm' : frame.sun.elev > 0 ? `Sun ${Math.round(frame.sun.elev)}° up` : 'Night')
+    : frame.sun.light > 0.98 ? 'In sunlight' : frame.sun.light > 0.02 ? 'Sun half hidden' : 'In darkness'
+  const crewLine = (() => {
+    if (!frame) return ''
+    const n = (d: Duty) => frame.duties.filter(x => x === d).length
+    if (n('sleep') === frame.crew) return `${frame.crew} asleep`
+    const bits = [n('eva') && `${n('eva')} outside`, n('farm') && `${n('farm')} in the greenhouse`, n('lab') && `${n('lab')} in the lab`].filter(Boolean) as string[]
+    const rest = frame.crew - n('eva') - n('farm') - n('lab')
+    if (rest) bits.push(`${rest} ${n('meal') === rest ? 'eating' : n('exercise') === rest ? 'exercising' : 'inside'}`)
+    return bits.join(', ')
+  })()
   const say = (text: string, kind: 'good' | 'bad' | 'goal') => setToast({ id: Date.now() + Math.random(), text, kind })
   const preview = (i: number) => (selected && g.unlocked.includes(selected) && !g.grid[i] ? placementGain(g.grid, i, selected) : null)
 
@@ -149,7 +204,7 @@ export default function Build() {
         {view === '3d' ? (
           <SceneBoundary onError={() => { setView('plan'); say('The 3D view could not load. Double-click start-dev.bat (or run npm install), then reload.', 'bad') }}>
             <Suspense fallback={<div className="base-loading">Preparing the base site…</div>}>
-              <BaseScene key={theme} theme={theme} grid={g.grid} selected={selected} focus={focus} preview={preview} onCell={onCell} sun={drawer === 'sim' ? simSun : null}
+              <BaseScene key={theme} theme={theme} grid={g.grid} selected={selected} focus={focus} preview={preview} onCell={onCell} live={frame} site={landing}
                 onFail={() => { setView('plan'); say('3D is not available on this device, so here is the plan view.', 'bad') }} />
             </Suspense>
           </SceneBoundary>
@@ -173,18 +228,50 @@ export default function Build() {
       </div>
 
       <div className="base-top">
+        <div className="bt-left">
         <section className={`energy cut ${e.energy < (selected ? energyCost(selected, landing) : 1) ? 'low' : ''}`} aria-label={`Energy ${e.energy} of ${cap}`}>
           <p className="en-row"><Icon name="bolt" size={18} /><strong key={e.energy}>{e.energy}</strong><span>/ {cap} energy</span></p>
           <div className="en-bar"><i style={{ width: `${Math.min(100, (e.energy / cap) * 100)}%` }} /></div>
           <p className="en-next">{e.next ? <>+1 in {mmss(e.next - now)}</> : 'Full'}<span>, 1 per {Math.round(period / 1000)} s</span></p>
         </section>
+        {frame && (
+          <section className="mission cut" aria-label={`Mission clock: ${unit} ${frame.day}, ${frame.time}`}>
+            <p className="ms-clock">
+              <strong>{unit} {frame.day}</strong><span>{frame.time}</span>
+              <em className={frame.sun.dark ? 'dark' : ''}><Icon name="sun" size={14} />{sunText}</em>
+            </p>
+            {testing ? <p className="ms-note">Showing the 60-day test. Close it to return to the live base.</p> : (
+              <div className="ms-speed" role="group" aria-label="How fast time passes">
+                {SPEEDS.map(s => (
+                  <button key={s.rate} data-sfx="click" aria-pressed={g.liveRate === s.rate} title={s.label} aria-label={s.label} onClick={() => g.setLiveRate(s.rate)}>
+                    {s.rate === 0 ? <Icon name="pause" size={13} /> : s.short}
+                  </button>
+                ))}
+              </div>
+            )}
+            {frame.crew > 0 ? (
+              <>
+                <ul className="ms-stocks">
+                  <li className={frame.o2 < 7 ? 'warn' : ''}><span>Oxygen</span>{Math.floor(frame.o2)} d</li>
+                  <li className={frame.water < 7 ? 'warn' : ''}><span>Water</span>{Math.floor(frame.water)} d</li>
+                  <li className={frame.food < 7 ? 'warn' : ''}><span>Food</span>{Math.floor(frame.food)} d</li>
+                  <li className={frame.soc !== null && frame.soc < 0.15 ? 'warn' : ''}><span>Battery</span>{frame.soc === null ? 'none' : `${Math.round(frame.soc * 100)}%`}</li>
+                </ul>
+                <button className="ms-crew" onClick={() => setDrawer('life')} title="See what everyone is doing">
+                  <Icon name="crew" size={13} />{crewLine}
+                </button>
+              </>
+            ) : <p className="ms-note">Build a habitat and the first crew moves in.</p>}
+          </section>
+        )}
+        </div>
         <section className="base-status" data-tut="status" aria-label="Base status">
           <span className={`chip ${operational ? 'ok' : 'warn'}`}><Icon name={operational ? 'check' : 'info'} size={14} />{operational ? 'Operational' : `Needs ${missing.join(', ')}`}</span>
           <span className={`chip ${power.net < 0 ? 'warn' : ''}`}><Icon name="bolt" size={14} />Power {signed(power.net)}</span>
           <span className="chip"><Icon name="crew" size={14} />Crew {crewCapacity(g.grid)}</span>
           <span className="chip"><Icon name="grid" size={14} />{g.grid.filter(Boolean).length}/{GRID_SIZE * GRID_SIZE}</span>
           <button className="chip chip-btn" onClick={() => setView(v => (v === '3d' ? 'plan' : '3d'))}>{view === '3d' ? '2D plan' : '3D view'}</button>
-          <button className="chip chip-btn sim-chip" onClick={() => setDrawer('sim')} title="Run your base for 60 days at its real site"><Icon name="play" size={12} />Simulate 60 days</button>
+          <button className="chip chip-btn sim-chip" onClick={() => setDrawer('sim')} title="Run your base for 60 days at its real site"><Icon name="play" size={12} />Test 60 days</button>
           {view === '3d' && landing.world === 'moon' && <button className="chip chip-btn" onClick={() => g.setBaseTheme(g.baseTheme === 'moon' ? 'cosy' : 'moon')} title="Switch how the base looks">Style: {g.baseTheme === 'moon' ? 'Moon' : 'cosy sea'}</button>}
         </section>
       </div>
@@ -194,6 +281,8 @@ export default function Build() {
           <button className="pc-close" aria-label="Close" data-sfx="back" onClick={() => setFocus(null)}><Icon name="cross" size={16} /></button>
           <h3><Icon name={MODULE_ICON[focused.id]} size={22} />{moduleById(focused.id).name}<small>level {focused.level}</small></h3>
           <p className="meta">Scores {Math.round(cellScore(g.grid, focus))} here. Power {signed(modulePower(focused, landing))}.</p>
+          {focusLive && <p className={`fc-live ${focusLive.on ? '' : 'off'}`} role="status">{focusLive.status}</p>}
+          {focusLive?.beds && <Beds beds={focusLive.beds} />}
           <div className="fc-actions">
             {focused.level === 1 && (
               <button className="btn primary cut small" data-sfx="none" onClick={() => { const r = g.upgrade(focus); if (r.ok) { sfx('star'); celebrate(r) } else { sfx('error'); say(why(r), 'bad') } }}>
@@ -247,9 +336,9 @@ export default function Build() {
       {drawer && (
         <aside className="base-drawer cut" aria-label="Quests and technology">
           <div className="bd-tabs" role="tablist">
-            {(['quests', 'tech', 'sim', 'site'] as const).map(t => (
+            {(['quests', 'tech', 'life', 'sim', 'site'] as const).map(t => (
               <button key={t} role="tab" aria-selected={drawer === t} className={drawer === t ? 'on' : ''} onClick={() => setDrawer(t)}>
-                {t === 'quests' ? <>Quests{claimable.length > 0 && <span className="bd-count">{claimable.length}</span>}</> : t === 'tech' ? 'Technology' : t === 'sim' ? 'Simulate' : 'Site'}
+                {t === 'quests' ? <>Quests{claimable.length > 0 && <span className="bd-count">{claimable.length}</span>}</> : t === 'tech' ? 'Tech' : t === 'life' ? 'Life' : t === 'sim' ? 'Test' : 'Site'}
               </button>
             ))}
             <button className="pc-close" aria-label="Close" data-sfx="back" onClick={() => setDrawer(null)}><Icon name="cross" size={16} /></button>
@@ -319,6 +408,33 @@ export default function Build() {
           )}
 
           {drawer === 'sim' && <BaseSim grid={g.grid} site={landing} onSun={setSimSun} />}
+
+          {drawer === 'life' && frame && liveState && (
+            <div className="site-info life">
+              <h3>{unit} {frame.day}, {frame.time}</h3>
+              <p className="meta">The base runs by its own clock: one second is one minute (faster if you choose), and it keeps going while the game is closed. The Sun is where it really would be at {landing.name}.</p>
+              <h4>Crew</h4>
+              {frame.crew ? (
+                <ul className="life-crew">
+                  {frame.duties.map((d, i) => <li key={i} className={`d-${d}`}><span>Crew {i + 1}</span>{DUTY_TEXT[d]}</li>)}
+                </ul>
+              ) : <p className="meta">No crew yet: build a habitat.</p>}
+              <p className="meta">An International Space Station day: 8.5 hours of sleep, three meals, two work blocks and two hours of exercise. Nobody goes outside alone, and nobody goes out in a dust storm.</p>
+              {g.grid.some(c => c?.id === 'farm') && <h4>Greenhouses</h4>}
+              {g.grid.map((c, i) => (c?.id === 'farm' && frame.cells[i]?.beds ? (
+                <div key={i} className="life-farm">
+                  <p><strong>Plot {i + 1}</strong> {frame.cells[i]!.status}</p>
+                  <Beds beds={frame.cells[i]!.beds!} />
+                </div>
+              ) : null))}
+              <h4>Base log</h4>
+              {liveState.log.length ? (
+                <ul className="life-log">
+                  {liveState.log.map((ev, i) => { const c = clockOf(ev.h, frame.dayLen); return <li key={i} className={ev.kind}><time>{unit} {c.day}, {c.text}</time>{ev.text}</li> })}
+                </ul>
+              ) : <p className="meta">Nothing to report yet. Harvests, cargo landers, sunsets and crew changes are written here.</p>}
+            </div>
+          )}
 
           {drawer === 'site' && (
             <div className="site-info">

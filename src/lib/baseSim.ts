@@ -18,9 +18,9 @@ import { crewCapacity, type BaseGrid, type PlacedModule } from './base'
 
 const RAD = Math.PI / 180
 export const SIM_DAYS = 60
-const LUNAR_DAY_H = 29.53 * 24
+export const LUNAR_DAY_H = 29.53 * 24
 const SUN_TILT_PERIOD_H = 346.6 * 24 // how long the Moon's subsolar point takes to swing north and back
-const SOL_H = 24.66
+export const SOL_H = 24.66
 const MARS_SUN = 715 // W/m² above Mars' air near perihelion (northern winter)
 const SOLAR_CONSTANT = 1361
 
@@ -152,8 +152,8 @@ export const LOAD: Record<ModuleId, [number, number]> = {
   habitat: [8, 14], power: [0, 0], comms: [0.6, 1], farm: [6, 10], battery: [0, 0], pad: [0.5, 0.8], lab: [3, 5],
   ice: [6, 10], rover: [2, 3], oxygen: [4, 7], printer: [4, 6], telescope: [0.5, 0.8], reactor: [0, 0],
 }
-const HEAT_MOON: [number, number] = [4, 6]
-const HEAT_MARS: [number, number] = [2, 3]
+export const HEAT_MOON: [number, number] = [4, 6]
+export const HEAT_MARS: [number, number] = [2, 3]
 /** Solar array output in full sunlight (kW): 10 kW is NASA's VSAT target; the upgrade adds panels */
 export const SOLAR_KW: [number, number] = [10, 15]
 /** Fission reactor output (kW), NASA Fission Surface Power target; the upgrade is a second unit */
@@ -161,17 +161,17 @@ export const REACTOR_KW: [number, number] = [40, 80]
 /** Stored energy (kWh): batteries, fuel cells when upgraded, and a battery that comes with an upgraded array */
 export const STORE_KWH = { battery: [100, 300] as [number, number], arrayUpgrade: 40 }
 /** Production per day: water (kg), oxygen (kg; on Mars it is split from CO2 like Perseverance's MOXIE), food (kg) */
-const ICE_KG: [number, number] = [15, 30]
-const O2_MOON: [number, number] = [8, 14]
-const O2_MARS: [number, number] = [3, 6]
-const FARM_FOOD: [number, number] = [0.6, 1.2]
-const FARM_O2: [number, number] = [0.25, 0.5]
+export const ICE_KG: [number, number] = [15, 30]
+export const O2_MOON: [number, number] = [8, 14]
+export const O2_MARS: [number, number] = [3, 6]
+export const FARM_FOOD: [number, number] = [0.6, 1.2]
+export const FARM_O2: [number, number] = [0.25, 0.5]
 /** Per crew member per day (NASA BVAD) */
 export const CREW = { o2: 0.82, water: 0.5, food: 1.8 }
-const START_DAYS = 30
-const RESUPPLY_DAYS = [28, 58]
+export const START_DAYS = 30
+export const RESUPPLY_DAYS = [28, 58]
 /** Power is cut in this order when the batteries run flat; habitats go last */
-const SHED: ModuleId[] = ['telescope', 'lab', 'printer', 'rover', 'comms', 'farm', 'ice', 'oxygen']
+export const SHED: ModuleId[] = ['telescope', 'lab', 'printer', 'rover', 'comms', 'farm', 'ice', 'oxygen']
 
 /* ---------- The run ---------- */
 
@@ -212,18 +212,120 @@ export interface SimResult {
 const count = (grid: BaseGrid, id: ModuleId) => grid.filter((c): c is PlacedModule => c?.id === id)
 const sum = <T,>(xs: T[], f: (x: T) => number) => xs.reduce((s, x) => s + f(x), 0)
 
+/* ---------- One hour of the base: shared by the 60-day test and the live base ---------- */
+
+/** The base as hardware: what it can make, store and draw. */
+export interface Hardware {
+  mars: boolean
+  crew: number
+  habitats: PlacedModule[]
+  /** Everything that draws power and can be switched off, with its plot */
+  others: { m: PlacedModule; cell: number }[]
+  storeKWh: number
+  solarKW: number
+  reactorKW: number
+  /** Share of radiation stopped by regolith berms once they are printed (0..0.6) */
+  shield: number
+  hasPad: boolean
+}
+
+export function hardwareOf(grid: BaseGrid, env: SiteEnv): Hardware {
+  const lv = (m: { level: 1 | 2 }) => m.level - 1
+  const others: Hardware['others'] = []
+  grid.forEach((m, cell) => { if (m && m.id !== 'habitat' && LOAD[m.id][0] > 0) others.push({ m, cell }) })
+  return {
+    mars: env.kind === 'mars',
+    crew: crewCapacity(grid),
+    habitats: count(grid, 'habitat'),
+    others,
+    storeKWh: sum(count(grid, 'battery'), m => STORE_KWH.battery[lv(m)]) + count(grid, 'power').filter(m => m.level === 2).length * STORE_KWH.arrayUpgrade,
+    solarKW: sum(count(grid, 'power'), m => SOLAR_KW[lv(m)]),
+    reactorKW: sum(count(grid, 'reactor'), m => REACTOR_KW[lv(m)]),
+    shield: Math.min(0.6, sum(count(grid, 'printer'), m => (m.level === 2 ? 0.5 : 0.3))),
+    hasPad: count(grid, 'pad').length > 0,
+  }
+}
+
+/** What the base holds: stored energy (kWh), oxygen, water and food (kg), and the crew's dose (mSv). */
+export interface Stocks { stored: number; o2: number; water: number; food: number; dose: number }
+
+export const startStocks = (hw: Hardware, days = START_DAYS): Stocks => ({
+  stored: hw.storeKWh, o2: CREW.o2 * hw.crew * days, water: CREW.water * hw.crew * days, food: CREW.food * hw.crew * days, dose: 0,
+})
+/** What one cargo lander brings: 30 days of supplies for the crew. */
+export function resupply(hw: Hardware, s: Stocks, days = 30) {
+  s.o2 += CREW.o2 * hw.crew * days; s.water += CREW.water * hw.crew * days; s.food += CREW.food * hw.crew * days
+}
+
+export interface HourResult {
+  gen: number
+  /** Power wanted before anything is switched off, and power drawn after */
+  demand: number
+  load: number
+  habLoad: number
+  shed: number
+  /** Which of hw.others stayed on */
+  on: boolean[]
+  /** Not even the habitats' life support could be powered */
+  powerOut: boolean
+}
+
+/**
+ * Runs the base for one Earth hour and updates its stocks in place.
+ * opts.farmFood false: farms add no steady food (the live base adds each harvest instead);
+ * opts.shield: how much of the berms is printed so far (default: all).
+ */
+export function stepHour(hw: Hardware, env: SiteEnv, sun: SunNow, s: Stocks, opts: { farmFood?: boolean; shield?: number } = {}): HourResult {
+  const lv = (m: { level: 1 | 2 }) => m.level - 1
+  const perHour = 1 / 24
+  const { mars, crew, others } = hw
+  const gen = hw.solarKW * sun.light + hw.reactorKW
+  // Loads: habitats keep life support and heat; the rest can be switched off
+  const heat = sun.dark && !env.lavaTube ? (mars ? HEAT_MARS : HEAT_MOON) : [0, 0]
+  const habLoad = sum(hw.habitats, m => LOAD.habitat[lv(m)] * (env.lavaTube ? 0.85 : 1) + heat[lv(m)])
+  const on = others.map(() => true)
+  const demand = habLoad + sum(others, o => LOAD[o.m.id][lv(o.m)])
+  let load = demand
+  // Not enough power and the batteries are flat: cut the least important first
+  let shed = 0
+  if (gen < load && s.stored <= 0.001) {
+    for (const id of SHED) {
+      others.forEach((o, i) => {
+        if (gen >= load || o.m.id !== id || !on[i]) return
+        on[i] = false; load -= LOAD[o.m.id][lv(o.m)]; shed++
+      })
+    }
+  }
+  const net = gen - load
+  s.stored = Math.min(hw.storeKWh, Math.max(0, s.stored + net * (net > 0 ? 0.92 : 1)))
+  const powerOut = gen < habLoad && s.stored <= 0 && crew > 0
+
+  // Life support, per hour
+  const running = (id: ModuleId) => others.filter((o, i) => o.m.id === id && on[i]).map(o => o.m)
+  s.water += sum(running('ice'), m => ICE_KG[lv(m)] * env.ice) * perHour
+  for (const m of running('oxygen')) {
+    const want = (mars ? O2_MARS : O2_MOON)[lv(m)] * perHour
+    if (mars) s.o2 += want
+    else { const made = Math.min(want, Math.max(0, s.water - CREW.water * crew) / 1.125); s.o2 += made; s.water -= made * 1.125 }
+  }
+  s.o2 += sum(running('farm'), m => FARM_O2[lv(m)]) * perHour
+  if (opts.farmFood !== false) s.food += sum(running('farm'), m => FARM_FOOD[lv(m)]) * perHour
+  s.o2 -= CREW.o2 * crew * perHour
+  s.water -= CREW.water * crew * perHour
+  s.food -= CREW.food * crew * perHour
+  const doseDay = env.doseRate * (env.lavaTube ? 0.05 : 1) * (1 - hw.shield * (opts.shield ?? 1))
+  s.dose += doseDay * perHour
+  return { gen, demand, load, habLoad, shed, on, powerOut }
+}
+
+/* ---------- The run ---------- */
+
 export function simulateBase(grid: BaseGrid, site: PlanetTarget, days = SIM_DAYS): SimResult {
   const env = envFor(site)
   const mars = env.kind === 'mars'
   const hours = Math.round(days * (mars ? SOL_H : 24))
-  const crew = crewCapacity(grid)
-  const lv = (m: { level: 1 | 2 }) => m.level - 1
-  const habitats = count(grid, 'habitat'), arrays = count(grid, 'power'), reactors = count(grid, 'reactor')
-  const storeKWh = sum(count(grid, 'battery'), m => STORE_KWH.battery[lv(m)]) + count(grid, 'power').filter(m => m.level === 2).length * STORE_KWH.arrayUpgrade
-  const solarKW = sum(arrays, m => SOLAR_KW[lv(m)])
-  const reactorKW = sum(reactors, m => REACTOR_KW[lv(m)])
-  const shield = Math.min(0.6, sum(count(grid, 'printer'), m => (m.level === 2 ? 0.5 : 0.3)))
-  const doseDay = env.doseRate * (env.lavaTube ? 0.05 : 1) * (1 - shield)
+  const hw = hardwareOf(grid, env)
+  const { crew, storeKWh } = hw
 
   const series = () => new Float32Array(hours + 1)
   const r: SimResult = {
@@ -231,8 +333,7 @@ export function simulateBase(grid: BaseGrid, site: PlanetTarget, days = SIM_DAYS
     o2: series(), water: series(), food: series(), dose: series(), shed: new Uint8Array(hours + 1), storeKWh,
     failed: null, darkSpells: [], storm: null, lit: 0, minSoc: { value: 1, hour: 0 }, deficitKWh: 0, sunMade: 0, sunUsed: 0, advice: [],
   }
-  let stored = storeKWh
-  let o2 = CREW.o2 * crew * START_DAYS, water = CREW.water * crew * START_DAYS, food = CREW.food * crew * START_DAYS, dose = 0
+  const s = startStocks(hw)
   let darkFrom = -1, litSum = 0, spell = 0, worstSpell = 0, madeSum = 0, usedSum = 0
   const perHour = 1 / 24 // each step is one Earth hour
 
@@ -241,58 +342,24 @@ export function simulateBase(grid: BaseGrid, site: PlanetTarget, days = SIM_DAYS
     if (!sun.dark) litSum++
     if (sun.dark && darkFrom < 0) darkFrom = h
     if (!sun.dark && darkFrom >= 0) { r.darkSpells.push([darkFrom, h]); darkFrom = -1 }
-    const gen = solarKW * sun.light + reactorKW
-    // Loads: habitats keep life support and heat; the rest can be switched off
-    const heat = sun.dark && !env.lavaTube ? (mars ? HEAT_MARS : HEAT_MOON) : [0, 0]
-    const habLoad = sum(habitats, m => LOAD.habitat[lv(m)] * (env.lavaTube ? 0.85 : 1) + heat[lv(m)])
-    const others = grid.filter((c): c is NonNullable<typeof c> => !!c && c.id !== 'habitat' && LOAD[c.id][0] > 0)
-    const on = new Set(others.map((_, i) => i))
-    let load = habLoad + sum(others, m => LOAD[m.id][lv(m)])
+    const step = stepHour(hw, env, sun, s)
+    const { gen, load } = step
     // At full demand: the energy each dark spell needs from storage, and the balance while the Sun is up
-    if (sun.dark) spell += Math.max(0, load - gen)
-    else { if (spell > worstSpell) worstSpell = spell; spell = 0; madeSum += gen; usedSum += load }
-    // Not enough power and the batteries are flat: cut the least important first
-    let shed = 0
-    if (gen < load && stored <= 0.001) {
-      for (const id of SHED) {
-        others.forEach((m, i) => {
-          if (gen >= load || m.id !== id || !on.has(i)) return
-          on.delete(i); load -= LOAD[m.id][lv(m)]; shed++
-        })
-      }
-    }
-    const net = gen - load
-    stored = Math.min(storeKWh, Math.max(0, stored + net * (net > 0 ? 0.92 : 1)))
-    if (gen < habLoad && stored <= 0 && !r.failed && crew > 0) r.failed = { hour: h, cause: 'power' }
-
-    // Life support, per hour
-    const running = (id: ModuleId) => others.filter((m, i) => m.id === id && on.has(i))
-    water += sum(running('ice'), m => ICE_KG[lv(m)] * env.ice) * perHour
-    for (const m of running('oxygen')) {
-      const want = (mars ? O2_MARS : O2_MOON)[lv(m)] * perHour
-      if (mars) o2 += want
-      else { const made = Math.min(want, Math.max(0, water - CREW.water * crew) / 1.125); o2 += made; water -= made * 1.125 }
-    }
-    o2 += sum(running('farm'), m => FARM_O2[lv(m)]) * perHour
-    food += sum(running('farm'), m => FARM_FOOD[lv(m)]) * perHour
-    o2 -= CREW.o2 * crew * perHour
-    water -= CREW.water * crew * perHour
-    food -= CREW.food * crew * perHour
-    dose += doseDay * perHour
+    if (sun.dark) spell += Math.max(0, step.demand - gen)
+    else { if (spell > worstSpell) worstSpell = spell; spell = 0; madeSum += gen; usedSum += step.demand }
+    if (step.powerOut && !r.failed) r.failed = { hour: h, cause: 'power' }
     const day = h / 24
-    if (count(grid, 'pad').length && RESUPPLY_DAYS.some(d => Math.abs(day - d) < perHour / 2)) {
-      o2 += CREW.o2 * crew * 30; water += CREW.water * crew * 30; food += CREW.food * crew * 30
-    }
+    if (hw.hasPad && RESUPPLY_DAYS.some(d => Math.abs(day - d) < perHour / 2)) resupply(hw, s)
     if (crew > 0 && !r.failed) {
-      if (o2 <= 0) r.failed = { hour: h, cause: 'oxygen' }
-      else if (water <= 0) r.failed = { hour: h, cause: 'water' }
-      else if (food <= 0) r.failed = { hour: h, cause: 'food' }
+      if (s.o2 <= 0) r.failed = { hour: h, cause: 'oxygen' }
+      else if (s.water <= 0) r.failed = { hour: h, cause: 'water' }
+      else if (s.food <= 0) r.failed = { hour: h, cause: 'food' }
     }
     const daysLeft = (stock: number, need: number) => (crew ? Math.max(0, stock / (need * crew)) : 0)
     r.elev[h] = sun.elev; r.az[h] = sun.az; r.light[h] = sun.light; r.gen[h] = gen; r.load[h] = load
-    r.soc[h] = storeKWh ? stored / storeKWh : gen >= load ? 1 : 0
-    r.o2[h] = daysLeft(o2, CREW.o2); r.water[h] = daysLeft(water, CREW.water); r.food[h] = daysLeft(food, CREW.food)
-    r.dose[h] = dose; r.shed[h] = shed
+    r.soc[h] = storeKWh ? s.stored / storeKWh : gen >= load ? 1 : 0
+    r.o2[h] = daysLeft(s.o2, CREW.o2); r.water[h] = daysLeft(s.water, CREW.water); r.food[h] = daysLeft(s.food, CREW.food)
+    r.dose[h] = s.dose; r.shed[h] = step.shed
     if (r.soc[h] < r.minSoc.value) r.minSoc = { value: r.soc[h], hour: h }
   }
   if (darkFrom >= 0) r.darkSpells.push([darkFrom, hours])

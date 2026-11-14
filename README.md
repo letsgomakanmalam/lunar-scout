@@ -110,3 +110,18 @@ See `DATA_USED.md`. Low polar Sun is computed; live probes measure their values 
 
 ## Credits
 Data: NASA (POWER, MODIS via the ORNL DAAC, NASADEM, SEDAC, NSIDC, LRO LOLA/Diviner/LROC, Moon Trek and Mars Trek, MGS MOLA, MRO HiRISE and CRISM, Mars Odyssey THEMIS, SWIM, Curiosity, Perseverance, GIBS), ESA (Copernicus DEM, Mars Express, ExoMars), JAXA (Kaguya), ISRO (Chandrayaan-2, HOPE), CNSA (Tianwen-1, Chang'e 4), Canadian Space Agency, USGS, Macrostrat, GLiM, Earth Impact Database. Imagery: NASA GIBS, EOX Sentinel-2 cloudless, OpenFreeMap.
+
+## The living base (new)
+
+The Base screen now runs on a mission clock instead of standing still.
+
+- **Clock**: one real second is one mission minute. Speed buttons go up to six hours a second, or pause. The clock keeps running at normal speed while the game is closed.
+- **Sun**: placed where it would be at the landing site at that hour. At Shackleton it circles the horizon and sometimes slips behind the ridge; on Mars there are days, nights and a dust storm.
+- **Crew**: an International Space Station style day (8.5 h sleep, three meals, two work blocks, two hours of exercise). Astronauts only go outside in pairs, and stay in during dust storms.
+- **Greenhouse**: a crew member sows one bed every three days. Each crop takes as long as it really did: red romaine lettuce 33 days (Veg-01 on the ISS), radishes 27 days (Plant Habitat-02 on the ISS), dwarf wheat about 62 days, potatoes about 105 days (NASA Biomass Production Chamber). Food is added at harvest, then the bed is sown again.
+- **Everything else**: solar arrays turn to the Sun, batteries charge and drain, a cargo lander comes every 30 days, a regolith berm takes weeks to print, windows go dark when the crew sleeps.
+- **Graphics**: real terrain with craters, boulders and hills, a black lunar sky with stars and Earth in the right place, long polar shadows, a dusty Martian sky, and buildings modelled on real hardware.
+
+Code: `src/lib/baseLive.ts` (rules, tested in `baseLive.test.ts`), `src/components/BaseScene.tsx` and `src/components/base3d/models.ts` (3D). Power, air, water and food use the same hour-by-hour model as the 60-day test (`stepHour` in `src/lib/baseSim.ts`).
+
+Simplified on purpose: crops do not die when the lights go out, the Mars season stays winter, and a crew that runs out of supplies is flown home and replaced rather than lost. Wheat and potato times are typical test-chamber values, not one specific experiment.

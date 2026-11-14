@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { PlanetTarget } from '../data/types'
 import type { BaseGrid } from '../lib/base'
-import { CAUSE_TEXT, SIM_DAYS, simulateBase } from '../lib/baseSim'
+import { CAUSE_TEXT, CREW, SIM_DAYS, simulateBase } from '../lib/baseSim'
+import type { Snapshot } from '../lib/baseLive'
 import Icon from './Icon'
 
 /** Where the Sun is in the simulation, for the 3D scene's light. */
-export interface SimSun { elev: number; az: number; light: number; dark: boolean; hour: number; failed: boolean }
+export interface SimSun { elev: number; az: number; light: number; dark: boolean; hour: number; failed: boolean; /** Stocks at that hour, for the 3D base */ snap: Snapshot }
 
 interface Props {
   grid: BaseGrid
@@ -44,7 +45,8 @@ export default function BaseSim({ grid, site, onSun }: Props) {
   // The 3D Sun follows the timeline while this panel is open
   useEffect(() => {
     const light = mars ? Math.min(1, r.light[t] / MARS_FULL) : r.light[t]
-    onSun({ elev: r.elev[t], az: r.az[t], light, dark: mars ? r.elev[t] <= 0 : r.light[t] < 0.5, hour: t, failed: !!r.failed && t >= r.failed.hour })
+    onSun({ elev: r.elev[t], az: r.az[t], light, dark: mars ? r.elev[t] <= 0 : r.light[t] < 0.5, hour: t, failed: !!r.failed && t >= r.failed.hour,
+      snap: { hour: t, sunAtHour: t, stored: r.soc[t] * r.storeKWh, o2: r.o2[t] * CREW.o2 * r.crew, water: r.water[t] * CREW.water * r.crew, food: r.food[t] * CREW.food * r.crew, dose: r.dose[t], failed: !!r.failed && t >= r.failed.hour } })
   }, [t, r, mars, onSun])
   useEffect(() => () => onSun(null), [onSun])
 

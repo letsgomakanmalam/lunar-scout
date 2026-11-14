@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import type { EarthSite, ModuleId } from './data/types'
 import { MODULES, moduleById } from './data/modules'
 import { MISSIONS, missionById, worldOfMission } from './data/missions'
+import { BASE_RATE, advanceLive, initLive, missionHours, type LiveState } from './lib/baseLive'
 import { TARGETS, targetById } from './data/targets'
 import { EARTH_SITES } from './data/earthSites'
 import { computeASI, starsFor } from './lib/scoring'
@@ -69,6 +70,13 @@ interface GameState {
   toggleMusic: () => void
   setMapPrefs: (p: Partial<MapPrefs>) => void
   setBaseTheme: (t: 'moon' | 'cosy') => void
+  /** The living base: its mission clock, stocks and log; null until the first tick */
+  live: LiveState | null
+  /** Mission seconds per real second (0 = paused), and when the clock was last moved */
+  liveRate: number
+  liveAt: number
+  tickLive: (now?: number) => void
+  setLiveRate: (rate: number) => void
   setMyLocation: (p: LatLon | null) => void
   addDiscovery: (site: EarthSite) => void
   removeDiscovery: (id: string) => void
@@ -123,6 +131,9 @@ const initial = {
   tutorialFlags: [] as TutEvent[],
   mapPrefs: DEFAULT_MAP,
   baseTheme: 'moon' as 'moon' | 'cosy',
+  live: null as LiveState | null,
+  liveRate: BASE_RATE,
+  liveAt: 0,
   myLocation: null as LatLon | null,
   discoveries: [] as EarthSite[],
   allOpen: false,
@@ -202,6 +213,19 @@ export const useGame = create<GameState>()(
       toggleMuted: () => set({ muted: !get().muted }),
       toggleMusic: () => set({ music: !get().music }),
       setBaseTheme: baseTheme => set({ baseTheme }),
+
+      // The mission clock: runs at the chosen speed while the base is open, and at the normal
+      // speed (one second = one minute) while the game is closed
+      tickLive: (at = Date.now()) => {
+        const s = get()
+        if (!s.landingId) return
+        const site = targetById(s.landingId)
+        const live = s.live && s.live.site === s.landingId ? s.live : initLive(s.grid, site)
+        const gap = s.liveAt ? Math.max(0, at - s.liveAt) : 0
+        const rate = gap > 15000 ? Math.min(s.liveRate, BASE_RATE) : s.liveRate
+        set({ live: advanceLive(live, s.grid, site, live.hour + missionHours(gap, rate)), liveAt: at })
+      },
+      setLiveRate: liveRate => { get().tickLive(); set({ liveRate }) },
       setMapPrefs: p => set({ mapPrefs: { ...DEFAULT_MAP, ...get().mapPrefs, ...p } }),
       setMyLocation: myLocation => set({ myLocation }),
       addDiscovery: site => {
@@ -284,7 +308,7 @@ export const useGame = create<GameState>()(
         return { stars, asi, reward, unlocked }
       },
 
-      chooseLanding: id => set({ landingId: id, grid: emptyGrid(), screen: 'build',
+      chooseLanding: id => set({ landingId: id, grid: emptyGrid(), screen: 'build', live: null, liveAt: 0,
         journal: [{ id: uid(), date: now(), auto: true, title: `Landing site chosen: ${targetById(id).name}`, text: targetById(id).landing?.perks.join(' ') ?? '' }, ...get().journal] }),
 
       place: (cell, id) => {

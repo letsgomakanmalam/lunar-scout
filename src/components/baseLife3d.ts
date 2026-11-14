@@ -7,7 +7,9 @@ import { GRID_SIZE, type BaseGrid } from '../lib/base'
 import { HALF, LOOP_LENGTH, TILE, cellCorners, cornerXZ, crewCount, homeCells, loopPoint, nearestOnLoop, roverPlan, route, workCells, type Corner } from '../lib/baseLife'
 
 /** From the mission simulation: the hour, and whether it is dark or life support has failed. */
-export interface LifeInfo { hour?: number; dark: boolean; failed?: boolean }
+export interface LifeInfo { hour?: number; dark: boolean; failed?: boolean; /** How many of the crew are outside right now (from the crew schedule) */ outside?: number }
+/** Height of the ground the crew walk on */
+const GROUND = 0.02
 
 /** Astronauts are drawn 35% larger than life so they read clearly from the default camera */
 const CREW_SCALE = 1.35
@@ -82,8 +84,9 @@ interface Walker {
 
 export function createBaseLife(scene: THREE.Scene, opts: { mars: boolean }) {
   const std = (color: string, extra: THREE.MeshStandardMaterialParameters = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.7, ...extra })
+  const dust = opts.mars ? '#c9a58c' : '#e9e7e1' // suits pick up the local dust
   const m: Mats = {
-    suit: std('#f2f1ec'), pack: std('#d8d5cb'), boot: std('#585c63'), visor: std('#d4a12a', { metalness: 0.85, roughness: 0.25, emissive: '#3a2800', emissiveIntensity: 0.3 }),
+    suit: std(dust), pack: std('#d8d5cb'), boot: std('#585c63'), visor: std('#d4a12a', { metalness: 0.85, roughness: 0.25, emissive: '#3a2800', emissiveIntensity: 0.3 }),
     metal: std('#8d939c', { metalness: 0.6, roughness: 0.4 }), cabin: std('#eceae4'), glass: std('#1f2a3a', { metalness: 0.3, roughness: 0.15 }),
     panel: std('#1d3b6e', { metalness: 0.4, roughness: 0.3 }), tire: std('#3a3d42', { roughness: 0.9 }),
     headlight: std('#fff7d6', { emissive: '#fff2c0', emissiveIntensity: 0 }),
@@ -131,7 +134,7 @@ export function createBaseLife(scene: THREE.Scene, opts: { mars: boolean }) {
       const parts = astronaut(m, stripeMats[crew.length % stripeMats.length], lamp)
       const at = pickCorner(homes)
       const p = cornerXZ(at)
-      parts.g.position.set(p.x, 0.14, p.z)
+      parts.g.position.set(p.x, GROUND, p.z)
       parts.g.scale.setScalar(0.001)
       scene.add(parts.g)
       crew.push({ obj: parts.g, parts, lamp, at, pos: { ...p }, path: [], mode: 'work', until: performance.now() + Math.random() * 2500, target: -1, phase: Math.random() * 6, shown: 0 })
@@ -181,17 +184,17 @@ export function createBaseLife(scene: THREE.Scene, opts: { mars: boolean }) {
       w.phase += dt * (opts.mars ? 6.5 : 4.6)
       const s = Math.sin(w.phase)
       if (opts.mars) {
-        w.obj.position.y = 0.14 + Math.abs(s) * 0.012
+        w.obj.position.y = GROUND + Math.abs(s) * 0.012
         P.legL.rotation.x = s * 0.55; P.legR.rotation.x = -s * 0.55
         P.armL.rotation.x = -s * 0.45; P.armR.rotation.x = s * 0.45
       } else {
         // the lunar "bunny hop": both legs together, a slow float between steps
-        w.obj.position.y = 0.14 + Math.abs(Math.sin(w.phase * 0.5)) * 0.075
+        w.obj.position.y = GROUND + Math.abs(Math.sin(w.phase * 0.5)) * 0.075
         P.legL.rotation.x = P.legR.rotation.x = Math.sin(w.phase) * 0.28
         P.armL.rotation.x = P.armR.rotation.x = -0.25 + Math.sin(w.phase) * 0.12
       }
     } else {
-      w.obj.position.y = 0.14
+      w.obj.position.y = GROUND
       P.legL.rotation.x = P.legR.rotation.x = 0
       const work = w.mode === 'work'
       P.armL.rotation.x = 0
@@ -207,8 +210,8 @@ export function createBaseLife(scene: THREE.Scene, opts: { mars: boolean }) {
     const dt = Math.min(0.25, Math.max(0, (now - last) / 1000))
     last = now
     const t = now / 1000
-    const stayIn = !!info && (info.dark || !!info.failed)
-    for (const w of crew) step(w, dt, now, t, stayIn, !!info?.dark)
+    const stayIn = !!info && info.outside === undefined && (info.dark || !!info.failed)
+    crew.forEach((w, i) => step(w, dt, now, t, info?.outside !== undefined ? i >= info.outside : stayIn, !!info?.dark))
     if (!rover) return
     const planNow = roverPlan({ hour: info?.hour, seconds: t, dark: info?.dark, failed: info?.failed, home: rover.home })
     // Always forward along the loop; in the simulation it can hurry to catch up when the timeline jumps
