@@ -20,7 +20,7 @@ Do these in order. Each one is something only the team can do.
 ## 4. Submit on the Space Apps platform
 - [ ] Re-read the official challenge page and the 2026 Project Submission Guide.
 - [ ] Project demo (required). A 60-second order that shows relevance first:
-  1. Twin finder, Moon Base ridge: best Earth twins and shared processes.
+  1. Twin finder, Moon Base ridge: best Earth twins and shared processes. Press **Why?** on Haughton Crater, then compare it with Kamestastin ("use both").
   2. "Search the whole planet": the heatmap and one new candidate (FINDINGS.md).
   3. Explore Earth: probe that candidate live with NASA and ESA data.
   4. Switch to Mars (Gale): Qaidam Basin, wind and salt processes, what Earth cannot copy.

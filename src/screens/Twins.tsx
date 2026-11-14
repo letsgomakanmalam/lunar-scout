@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { allSites, useGame } from '../store'
 import { TARGETS, targetById, targetsOf } from '../data/targets'
 import { FACTOR_HINTS, FACTOR_LABELS, PROCESS_LABELS, WORLD_LABEL, type FactorKey, type World } from '../data/types'
@@ -13,6 +13,7 @@ import MoonGlobe from '../components/MoonGlobe'
 import LightCalendar from '../components/LightCalendar'
 import GlobalSearch from '../components/GlobalSearch'
 import AnalogReach from '../components/AnalogReach'
+import AskWhy from '../components/AskWhy'
 import Icon from '../components/Icon'
 import { useMedia } from '../lib/motion'
 import { APP_NAME } from '../brand'
@@ -40,6 +41,10 @@ export default function Twins() {
 
   const pickWorld = (w: World) => { if (w !== t.world) g.setTwinTarget(targetsOf(w)[0].id) }
   const openSite = (id: string) => { g.selectSite(id); g.go('explore') }
+  // Ask why: the "Why?" button on a twin fills in the explainer below and brings it into view
+  const [whyId, setWhyId] = useState<string | null>(null)
+  const whyBox = useRef<HTMLElement>(null)
+  const askWhy = (id: string) => { setWhyId(id); whyBox.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
 
   return (
     <div className="page twins">
@@ -110,11 +115,17 @@ export default function Twins() {
                   <strong>{r.result.asi}</strong>
                   <small title="Share of the profile with data">{Math.round(r.result.confidence * 100)}% data</small>
                 </span>
+                <button className="chip-btn tr-why" onClick={() => askWhy(r.site.id)} aria-label={`Why is ${r.site.name} a match?`}>Why?</button>
               </li>
             ))}
           </ol>
         </section>
       </div>
+
+      <section className="panel cut global-panel why-panel" aria-labelledby="why-h" ref={whyBox}>
+        <h2 id="why-h"><Icon name="info" size={20} />Ask why</h2>
+        <AskWhy target={t} sites={twins.map(r => r.site)} siteId={whyId} onSite={setWhyId} onOpen={openSite} />
+      </section>
 
       <section className="panel cut global-panel" aria-labelledby="global-h">
         <h2 id="global-h"><Icon name="globe" size={20} />Search the whole planet for new analogs</h2>

@@ -13,6 +13,7 @@ Built for the NASA Space Apps Challenge 2026 challenge **"Identify Earth Locatio
 - **30 Earth sites, 15 factors each**: deserts, polar regions, volcanic fields, caves, impact craters, acidic waters, salt basins and highlands. Known analogs, under-used candidates (including two in Indonesia near Kuala Lumpur) and Malaysian comparison sites. New factors: ground ice, highland rock (anorthosite, the rock of the lunar south pole), bare ground, water-laid rock and salts, and low polar Sun.
 - **Probe any point on Earth** (crosshair button on the map, or "Probe here" on a search result). The app reads NASA POWER climate, ESA Copernicus DEM terrain, NASA MODIS vegetation, the Macrostrat geologic map and the Earth Impact Database for that spot, scores it against every Moon and Mars target, and flags a **new analog candidate** when it scores 75+ more than 200 km from any listed analog.
 - **Global search for new analogs** (Twin finder): every land cell on Earth (91,636 cells of 0.5°) is scored against the chosen Moon or Mars site and shown as a world heatmap. The best places that are not yet known analogs are ranked, each with a one-tap live probe, and a validation check shows where the analogs agencies already use fall (for most sites, in the top 10% of Earth's land). See **FINDINGS.md** for the results: for NASA's Moon Base ridge, the top five new candidates all contain impact structures in polar tundra (El'gygytgyn, Pingualuit, Popigai, Tunnunik and the buried Hiawatha structure).
+- **Ask why**: plain-language explanations of every match, comparisons of two sites, and where to rehearse a given test (see below).
 - **Analog within reach**: from your own city, the best Moon- or Mars-like place you can travel to, and what each extra kilometre buys (see below).
 - **Twin finder**: pick any Moon or Mars site to see its best Earth twins, the best three-site field campaign (greedy maximum coverage), and what no place on Earth can copy (gravity, air, radiation, temperature, day length, dust) with how teams test those instead.
 - **South-pole light calendar**: the dates when the Sun at an Earth site stays as low as at the lunar south pole. NASA fakes this lighting with spotlights at night; this finds where and when the real Sun does it.
@@ -113,6 +114,16 @@ See `DATA_USED.md`. Low polar Sun is computed; live probes measure their values 
 **Team Dua Orang**: Ng Soon Teck (Leader), Tng Kah Hong (Member).
 
 Data: NASA (POWER, MODIS via the ORNL DAAC, NASADEM, SEDAC, NSIDC, LRO LOLA/Diviner/LROC, Moon Trek and Mars Trek, MGS MOLA, MRO HiRISE and CRISM, Mars Odyssey THEMIS, SWIM, Curiosity, Perseverance, GIBS), ESA (Copernicus DEM, Mars Express, ExoMars), JAXA (Kaguya), ISRO (Chandrayaan-2, HOPE), CNSA (Tianwen-1, Chang'e 4), Canadian Space Agency, USGS, Macrostrat, GLiM, Earth Impact Database. Imagery: NASA GIBS, EOX Sentinel-2 cloudless, OpenFreeMap.
+
+## Ask why: the app explains itself (new idea)
+
+A score alone does not tell a mission planner much. In the Twin finder, **Ask why** answers three questions in plain words:
+
+- **Why is this place a match?** Which factors earn the points, where the likeness breaks down and how many points that costs, which processes the two places share, what to rehearse there, and how many of the values are estimates.
+- **Why this one and not that one?** Who wins, by how many points and on which factors, and whether visiting both covers more than the better one alone.
+- **Where should I test…?** Pick a test (ice drilling, rover driving, dust protection, life detection…) and it names the best site for that one thing.
+
+Each twin in the list has a **Why?** button. The explanations are written by fixed rules from the numbers on the page (`src/lib/explain.ts`, tested in `explain.test.ts`). It is **not a chatbot or a language model**: every figure can be traced to a factor, the same question always gets the same answer, and it works offline. The tests check that the points add up to the Analog Similarity Index for every site and target.
 
 ## Analog within reach (new idea)
 

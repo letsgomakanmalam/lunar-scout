@@ -1348,3 +1348,33 @@ label { display: grid; gap: .35rem; font: 600 .8rem var(--head); letter-spacing:
   .rc-tick { font-size: 19px; }
   .rc-tick.rc-minor { display: none; }
 }
+
+/* ---------- Ask why (Twin finder) ---------- */
+.twin-row { grid-template-columns: 28px minmax(0, 1fr) minmax(130px, 210px) auto; }
+.why-panel { scroll-margin-top: 70px; }
+.why-q { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: .8rem 1.2rem; margin: .8rem 0; }
+.why-q label { display: grid; gap: .25rem; min-width: 0; }
+.why-q label > span { color: var(--dust); font: 600 .74rem var(--head); letter-spacing: .1em; text-transform: uppercase; }
+.why-q select { width: 100%; min-height: 40px; padding: 0 .7rem; border: 1px solid var(--line-2); background: #0d1320; color: var(--regolith); font: 500 .95rem var(--body); }
+.why-answer { --cut: 12px; --fill: rgba(9, 14, 24, .92); --edge: rgba(114, 182, 255, .4); margin: 0 0 .9rem; padding: 1rem 1.1rem; }
+.why-answer h3 { margin: 1rem 0 .4rem !important; color: var(--dust); font: 600 .8rem var(--head) !important; letter-spacing: .14em; text-transform: uppercase; }
+.why-verdict { display: flex; gap: .6rem; align-items: flex-start; margin: 0; font-size: 1.04rem; line-height: 1.45; color: #fff; }
+.why-verdict .icon { flex: none; margin-top: .2rem; color: #72b6ff; }
+.why-points { display: grid; gap: .4rem; margin: 0 0 .4rem; padding: 0; list-style: none; }
+.why-points li { display: grid; gap: .15rem; padding: .45rem .7rem; border-left: 3px solid var(--line-2); background: rgba(255, 255, 255, .025); font-size: .92rem; }
+.why-points li.good { border-left-color: var(--good); } .why-points li.bad { border-left-color: var(--bad); } .why-points li.info { border-left-color: #72b6ff; }
+.why-points li strong { color: #fff; font: 600 .95rem var(--head); letter-spacing: .02em; }
+.why-points li span { color: var(--dust); }
+.why-answer > .btn { margin-top: .6rem; }
+.why-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 1.4rem; }
+.why-leads { display: grid; gap: .2rem; margin: 0; padding: 0; list-style: none; font-size: .92rem; }
+.why-leads li { display: flex; justify-content: space-between; gap: .8rem; padding: .25rem .5rem; background: rgba(255, 255, 255, .03); }
+.why-leads strong { color: var(--good); font: 700 .95rem var(--head); }
+.why-advice { margin: .9rem 0 0; padding: .5rem .7rem; border-left: 3px solid var(--foil); background: rgba(233, 178, 76, .07); }
+.why-tests { display: flex; flex-wrap: wrap; gap: .35rem; margin: 0 0 .8rem; }
+.chip-btn[aria-pressed='true'] { border-color: var(--foil); background: rgba(233, 178, 76, .18); color: #fff; }
+@media (max-width: 899px) {
+  .twin-row { grid-template-columns: 24px minmax(0, 1fr) auto; }
+  .tr-score { grid-column: 2; }
+  .tr-why { grid-column: 3; grid-row: 1; }
+}
