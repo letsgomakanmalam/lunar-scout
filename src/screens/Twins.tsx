@@ -12,6 +12,7 @@ import { fmtCoords } from '../lib/format'
 import MoonGlobe from '../components/MoonGlobe'
 import LightCalendar from '../components/LightCalendar'
 import GlobalSearch from '../components/GlobalSearch'
+import AnalogReach from '../components/AnalogReach'
 import Icon from '../components/Icon'
 import { useMedia } from '../lib/motion'
 import { APP_NAME } from '../brand'
@@ -118,6 +119,11 @@ export default function Twins() {
       <section className="panel cut global-panel" aria-labelledby="global-h">
         <h2 id="global-h"><Icon name="globe" size={20} />Search the whole planet for new analogs</h2>
         <GlobalSearch target={t} sites={sites} onProbe={(lat, lon, note) => { g.setPendingProbe({ lat, lon, note }); g.go('explore') }} />
+      </section>
+
+      <section className="panel cut global-panel reach-panel" aria-labelledby="reach-h">
+        <h2 id="reach-h"><Icon name="pin" size={20} />Analog within reach</h2>
+        <AnalogReach target={t} myLocation={g.myLocation} units={g.mapPrefs.units} onProbe={(lat, lon, note) => { g.setPendingProbe({ lat, lon, note }); g.go('explore') }} />
       </section>
 
       <section className="panel campaign-plan cut" aria-labelledby="plan-h">

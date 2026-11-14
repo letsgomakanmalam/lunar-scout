@@ -24,6 +24,7 @@ Do these in order. Each one is something only the team can do.
   2. "Search the whole planet": the heatmap and one new candidate (FINDINGS.md).
   3. Explore Earth: probe that candidate live with NASA and ESA data.
   4. Switch to Mars (Gale): Qaidam Basin, wind and salt processes, what Earth cannot copy.
-  5. Last 10 seconds only: the living base.
+  5. Analog within reach: from Kuala Lumpur, Western Australia is 79% as good as the Atacama and five times closer. This is the team's own idea, so say so.
+  6. Last 10 seconds only: the living base.
 - [ ] Paste `DATA_USED.md` and `AI_USE.md` into the project page.
 - [ ] Tick the terms checkbox and submit before the deadline.

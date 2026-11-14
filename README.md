@@ -13,6 +13,7 @@ Built for the NASA Space Apps Challenge 2026 challenge **"Identify Earth Locatio
 - **30 Earth sites, 15 factors each**: deserts, polar regions, volcanic fields, caves, impact craters, acidic waters, salt basins and highlands. Known analogs, under-used candidates (including two in Indonesia near Kuala Lumpur) and Malaysian comparison sites. New factors: ground ice, highland rock (anorthosite, the rock of the lunar south pole), bare ground, water-laid rock and salts, and low polar Sun.
 - **Probe any point on Earth** (crosshair button on the map, or "Probe here" on a search result). The app reads NASA POWER climate, ESA Copernicus DEM terrain, NASA MODIS vegetation, the Macrostrat geologic map and the Earth Impact Database for that spot, scores it against every Moon and Mars target, and flags a **new analog candidate** when it scores 75+ more than 200 km from any listed analog.
 - **Global search for new analogs** (Twin finder): every land cell on Earth (91,636 cells of 0.5°) is scored against the chosen Moon or Mars site and shown as a world heatmap. The best places that are not yet known analogs are ranked, each with a one-tap live probe, and a validation check shows where the analogs agencies already use fall (for most sites, in the top 10% of Earth's land). See **FINDINGS.md** for the results: for NASA's Moon Base ridge, the top five new candidates all contain impact structures in polar tundra (El'gygytgyn, Pingualuit, Popigai, Tunnunik and the buried Hiawatha structure).
+- **Analog within reach**: from your own city, the best Moon- or Mars-like place you can travel to, and what each extra kilometre buys (see below).
 - **Twin finder**: pick any Moon or Mars site to see its best Earth twins, the best three-site field campaign (greedy maximum coverage), and what no place on Earth can copy (gravity, air, radiation, temperature, day length, dust) with how teams test those instead.
 - **South-pole light calendar**: the dates when the Sun at an Earth site stays as low as at the lunar south pole. NASA fakes this lighting with spotlights at night; this finds where and when the real Sun does it.
 - **Reports**: download an Analog Passport (Markdown and JSON) for any site, or a twin report for any Moon or Mars site.
@@ -112,6 +113,17 @@ See `DATA_USED.md`. Low polar Sun is computed; live probes measure their values 
 **Team Dua Orang**: Ng Soon Teck (Leader), Tng Kah Hong (Member).
 
 Data: NASA (POWER, MODIS via the ORNL DAAC, NASADEM, SEDAC, NSIDC, LRO LOLA/Diviner/LROC, Moon Trek and Mars Trek, MGS MOLA, MRO HiRISE and CRISM, Mars Odyssey THEMIS, SWIM, Curiosity, Perseverance, GIBS), ESA (Copernicus DEM, Mars Express, ExoMars), JAXA (Kaguya), ISRO (Chandrayaan-2, HOPE), CNSA (Tianwen-1, Chang'e 4), Canadian Space Agency, USGS, Macrostrat, GLiM, Earth Impact Database. Imagery: NASA GIBS, EOX Sentinel-2 cloudless, OpenFreeMap.
+
+## Analog within reach (new idea)
+
+The best analogs on Earth are in Antarctica, the high Arctic and the Atacama. Most student teams, and most space programmes that are just starting, cannot go there. So the Twin finder now also answers a practical question: **starting from your own city, what is the best place you can actually reach, and what does each extra kilometre of travel buy?**
+
+- Pick a start (Kuala Lumpur by default, 12 other cities, or your own location) and how far you can travel.
+- It shows the best-scoring place inside that distance, compared with the best place on Earth.
+- A staircase chart shows the best score you can reach against distance, and a list shows the places where going further finally pays off. Each can be probed live in one tap.
+- Example: for Gale Crater, from Kuala Lumpur, the Western Plateau of Australia (3,408 km) scores 75, which is 79% of the Atacama's 96 at one fifth of the distance.
+
+It uses the same screening scores as the Global search (`src/lib/reach.ts`, `src/components/AnalogReach.tsx`), so the same limits apply: coarse 55 km cells that need a live probe. Distances are straight lines, not travel time or cost.
 
 ## Dust, habitability and processes (new)
 
