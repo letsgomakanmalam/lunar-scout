@@ -6,6 +6,9 @@ import { CLIMATE_ZONES } from '../data/climateZones'
 import { useGame } from '../store'
 import Icon, { type IconName } from '../components/Icon'
 import { APP_NAME, TEAM } from '../brand'
+import { ASTRONOMY, ENGINEERING, GENERAL_ENGINEERING } from '../data/knowledge'
+import KnowNotes from '../components/KnowNotes'
+import { natureOf } from '../lib/baseNature'
 
 const LOOP: { icon: IconName; title: string; text: string }[] = [
   { icon: 'rocket', title: 'Take a mission', text: "Each mission names a real base or landing site on the Moon or Mars, and what matters there." },
@@ -138,6 +141,18 @@ export default function About() {
         Coverage of a set of sites is Σ <var>weight</var> × (best similarity in the set) ÷ Σ <var>weight</var>. The planner adds,
         one at a time, the site that raises coverage most (greedy maximum coverage).
       </p>
+
+      <h2>Astronomy and engineering notes</h2>
+      <p>
+        Why the Moon and Mars are the way they are, and what that means for building there. The same notes appear on each Moon and
+        Mars site in the Twin finder and on every building in the Base. Where a note has a sum, the app works it out from the cited
+        values.
+      </p>
+      <KnowNotes label="Astronomy of the Moon" notes={ASTRONOMY.moon} />
+      <KnowNotes label="Astronomy of Mars" notes={ASTRONOMY.mars} />
+      <KnowNotes label="Nature at a Moon base: what happens and why" notes={natureOf('moon').map(n => ({ id: `nat-moon-${n.id}`, kind: 'astronomy' as const, title: n.title, text: `${n.what} Why: ${n.why} ${n.so}`, sourceId: n.sourceId }))} />
+      <KnowNotes label="Nature at a Mars base: what happens and why" notes={natureOf('mars').map(n => ({ id: `nat-mars-${n.id}`, kind: 'astronomy' as const, title: n.title, text: `${n.what} Why: ${n.why} ${n.so}`, sourceId: n.sourceId }))} />
+      <KnowNotes label="Engineering a base" notes={[...Object.values(ENGINEERING), ...GENERAL_ENGINEERING]} />
 
       <h2>Honest limits</h2>
       <p>

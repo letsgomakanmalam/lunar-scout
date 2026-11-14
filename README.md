@@ -115,6 +115,29 @@ See `DATA_USED.md`. Low polar Sun is computed; live probes measure their values 
 
 Data: NASA (POWER, MODIS via the ORNL DAAC, NASADEM, SEDAC, NSIDC, LRO LOLA/Diviner/LROC, Moon Trek and Mars Trek, MGS MOLA, MRO HiRISE and CRISM, Mars Odyssey THEMIS, SWIM, Curiosity, Perseverance, GIBS), ESA (Copernicus DEM, Mars Express, ExoMars), JAXA (Kaguya), ISRO (Chandrayaan-2, HOPE), CNSA (Tianwen-1, Chang'e 4), Canadian Space Agency, USGS, Macrostrat, GLiM, Earth Impact Database. Imagery: NASA GIBS, EOX Sentinel-2 cloudless, OpenFreeMap.
 
+## Nature at the base, and explanations in 3D (new)
+
+The living base now has weather and sky events, each with a plain "what you see, why it happens, what it means for the base" explanation (`src/lib/baseNature.ts`, tested in `baseNature.test.ts`).
+
+- **Mars**: dust storms (a brown veil, streaming dust, dim Sun), dust devils after noon, a blue glow around the low Sun, Phobos crossing the night sky from west to east, and solar particle storms.
+- **Moon**: meteoroid flashes with dust thrown in clean arcs, thermal moonquakes when sunlight arrives or leaves, earthshine in the dark, kilometre-long black shadows, and solar particle storms (white specks on the camera; the crew stays inside).
+- **Where to find it**: chips under the mission clock show what is happening now. The **Life** tab has "Nature at the base" with every explanation and a **Show me** button for dust storms, dust devils, solar storms, flashes and quakes, so they can be shown in a demo without waiting. A pop-up gives the reason when an event starts.
+- **Press a building in 3D**: the camera turns to it and an explanation is pinned above it in the 3D view: what it is doing right now, and the engineering reason behind it, with the sum.
+
+How they are drawn: dust devils are a few hundred dust grains spiralling up a leaning column with a skirt of dust at the foot; a dust storm thickens the air from your feet outwards and streams grit past in 3D; radiation specks are random dots and short tracks, as on real spacecraft cameras; a meteoroid strike gives a split-second flash, dust in arcs and a bright rayed splash that stays; Phobos is a lumpy rock, not a round moon.
+
+Honest limits: events are shown more often than in real life so a player sees them; dust devils appear in the Martian winter too; Phobos follows a simplified path; a solar storm keeps the crew inside but is not added to the radiation dose. The explanations were written from memory and need a team check.
+
+## Astronomy and engineering notes (new)
+
+Short notes explain why the Moon and Mars are the way they are, and what that means for building there. Each has a source, and where there is a sum behind it, the sum is shown.
+
+- **Twin finder**: every Moon or Mars site has a folded "Astronomy" list: why the Sun skims the horizon at the lunar pole, why a lunar day lasts a month, why Earth hangs still in the sky, Martian sols, seasons, sunlight, thin air and blue sunsets, and the 26-month launch window.
+- **Base**: tap any building for its engineering note: radiation limits, upright solar arrays, sizing a battery for the night, signal delay, pink grow lights, rocket dust, making oxygen from water or air, grip in low gravity, and more.
+- **About page**: all the notes in one place, plus two general ones (shedding heat in a vacuum, and Moon dust).
+
+The numbers are constants in `src/data/knowledge.ts` and the sentences are worked out from them, so `knowledge.test.ts` checks the arithmetic. The planet values were checked against NASA's Planetary Fact Sheets and the MOXIE figures against NASA JPL on 14 November 2026. The battery example assumes 200 Wh per kg, a round figure to show the scale.
+
 ## Ask why: the app explains itself (new idea)
 
 A score alone does not tell a mission planner much. In the Twin finder, **Ask why** answers three questions in plain words:

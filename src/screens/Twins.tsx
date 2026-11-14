@@ -14,6 +14,8 @@ import LightCalendar from '../components/LightCalendar'
 import GlobalSearch from '../components/GlobalSearch'
 import AnalogReach from '../components/AnalogReach'
 import AskWhy from '../components/AskWhy'
+import KnowNotes from '../components/KnowNotes'
+import { ASTRONOMY } from '../data/knowledge'
 import Icon from '../components/Icon'
 import { useMedia } from '../lib/motion'
 import { APP_NAME } from '../brand'
@@ -84,6 +86,7 @@ export default function Twins() {
               <ul className="proc-chips">{t.processes.map(p => <li key={p}>{PROCESS_LABELS[p]}</li>)}</ul>
             </>
           )}
+          <KnowNotes label={`Astronomy: why ${t.world === 'moon' ? 'the Moon' : 'Mars'} is like this (${ASTRONOMY[t.world].length} notes)`} notes={ASTRONOMY[t.world]} />
           <h3>What matters for a crew here</h3>
           <ul className="weights">
             {profile.map(([k, w]) => (

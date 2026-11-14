@@ -11,7 +11,11 @@ import {
 import type { ModuleId } from '../data/types'
 import Icon, { MODULE_ICON } from '../components/Icon'
 import { sfx } from '../lib/sfx'
-import { DUTY_TEXT, SPEEDS, clockOf, frameFor, initLive, type BedState, type Duty } from '../lib/baseLive'
+import { ENGINEERING } from '../data/knowledge'
+import KnowNotes from '../components/KnowNotes'
+import { DUTY_TEXT, SPEEDS, clockOf, frameFor, initLive, liveSun, type BedState, type Duty } from '../lib/baseLive'
+import { NATURE, PREVIEWABLE, natureAt, natureOf, shortWhy, withPreview, type NatureId } from '../lib/baseNature'
+import { envFor, sunAt } from '../lib/baseSim'
 
 const BaseScene = lazy(() => import('../components/BaseScene'))
 import BaseSim, { type SimSun } from '../components/BaseSim'
@@ -85,6 +89,30 @@ export default function Build() {
     if (!site || !liveState) return null
     return drawer === 'sim' && simSun ? frameFor(g.grid, site, simSun.snap) : frameFor(g.grid, site, liveState)
   }, [site, liveState, g.grid, drawer, simSun])
+  // Nature at the base (lib/baseNature): what is happening at this hour, or one event shown on demand
+  const [demo, setDemo] = useState<{ id: NatureId; seed: number } | null>(null)
+  useEffect(() => {
+    if (!demo) return
+    const id = setTimeout(() => setDemo(null), 9000)
+    return () => clearTimeout(id)
+  }, [demo])
+  const nature = useMemo(() => {
+    if (!site || !frame) return null
+    const env = envFor(site), inTest = drawer === 'sim' && !!simSun
+    const now = natureAt(env, site, frame.hour, frame.hod, h => (inTest ? sunAt(env, site.lat, h) : liveSun(env, site.lat, h)))
+    return demo ? withPreview(now, demo.id, demo.seed) : now
+  }, [site, frame, drawer, simSun, demo])
+  // When something starts, say what it is and why
+  const natureWas = useRef<string | null>(null)
+  useEffect(() => {
+    if (!nature) return
+    const before = natureWas.current
+    natureWas.current = nature.active.join(',')
+    if (before === null || demo) return
+    const had = before.split(',')
+    const started = nature.active.find(id => (NATURE[id].warn || id === 'dust-devil') && !had.includes(id))
+    if (started) setToast({ id: Date.now(), text: shortWhy(started), kind: NATURE[started].warn ? 'bad' : 'good' })
+  }, [nature, demo])
   // News from the base (a harvest, a cargo lander, sunset) pops up as it happens
   const lastNews = useRef<number | null>(null)
   useEffect(() => {
@@ -204,7 +232,8 @@ export default function Build() {
         {view === '3d' ? (
           <SceneBoundary onError={() => { setView('plan'); say('The 3D view could not load. Double-click start-dev.bat (or run npm install), then reload.', 'bad') }}>
             <Suspense fallback={<div className="base-loading">Preparing the base site…</div>}>
-              <BaseScene key={theme} theme={theme} grid={g.grid} selected={selected} focus={focus} preview={preview} onCell={onCell} live={frame} site={landing}
+              <BaseScene key={theme} theme={theme} grid={g.grid} selected={selected} focus={focus} preview={preview} onCell={onCell} live={frame} site={landing} nature={nature}
+                callout={focused ? { title: `${moduleById(focused.id).name}, level ${focused.level}`, status: focusLive?.status, why: `Why: ${ENGINEERING[focused.id].title}`, text: ENGINEERING[focused.id].text, math: ENGINEERING[focused.id].math } : null}
                 onFail={() => { setView('plan'); say('3D is not available on this device, so here is the plan view.', 'bad') }} />
             </Suspense>
           </SceneBoundary>
@@ -262,6 +291,11 @@ export default function Build() {
                 </button>
               </>
             ) : <p className="ms-note">Build a habitat and the first crew moves in.</p>}
+            {!!nature?.active.length && (
+              <div className="ms-nature" role="group" aria-label="Happening now. Press one to learn why.">
+                {nature.active.slice(0, 3).map(id => <button key={id} className={NATURE[id].warn ? 'warn' : ''} onClick={() => setDrawer('life')} title={`${NATURE[id].what} Press to learn why.`}>{NATURE[id].title}</button>)}
+              </div>
+            )}
           </section>
         )}
         </div>
@@ -283,6 +317,7 @@ export default function Build() {
           <p className="meta">Scores {Math.round(cellScore(g.grid, focus))} here. Power {signed(modulePower(focused, landing))}.</p>
           {focusLive && <p className={`fc-live ${focusLive.on ? '' : 'off'}`} role="status">{focusLive.status}</p>}
           {focusLive?.beds && <Beds beds={focusLive.beds} />}
+          <KnowNotes label={`Engineering: ${ENGINEERING[focused.id].title}`} notes={[ENGINEERING[focused.id]]} />
           <div className="fc-actions">
             {focused.level === 1 && (
               <button className="btn primary cut small" data-sfx="none" onClick={() => { const r = g.upgrade(focus); if (r.ok) { sfx('star'); celebrate(r) } else { sfx('error'); say(why(r), 'bad') } }}>
@@ -427,6 +462,23 @@ export default function Build() {
                   <Beds beds={frame.cells[i]!.beds!} />
                 </div>
               ) : null))}
+              <h4>Nature at the base</h4>
+              <p className="meta">What happens here without anyone doing anything, and why. Some events can be shown on demand; the others depend on where the Sun is.</p>
+              <ul className="nature-list">
+                {natureOf(landing.world).sort((a, b) => Number(nature?.active.includes(b.id) ?? false) - Number(nature?.active.includes(a.id) ?? false)).map(n => {
+                  const on = nature?.active.includes(n.id) ?? false
+                  return (
+                    <li key={n.id} className={`${on ? '' : 'idle'} ${n.warn ? 'warn' : ''}`}>
+                      <strong>{n.title} {on && <em>happening now</em>}</strong>
+                      <p><b>You see</b>{n.what}</p>
+                      <p><b>Why</b>{n.why}</p>
+                      <p><b>So</b>{n.so}</p>
+                      {PREVIEWABLE.includes(n.id) && view === '3d' && <button className="chip-btn" onClick={() => { setDemo({ id: n.id, seed: Date.now() % 100000 }); setToast({ id: Date.now(), text: shortWhy(n.id), kind: n.warn ? 'bad' : 'good' }); if (window.matchMedia('(max-width: 760px)').matches) setDrawer(null) }}>Show me</button>}
+                    </li>
+                  )
+                })}
+              </ul>
+              <p className="meta">Shown more often than in real life so you can see them. A flash near one base is rare, and big solar storms come a few times a year.</p>
               <h4>Base log</h4>
               {liveState.log.length ? (
                 <ul className="life-log">

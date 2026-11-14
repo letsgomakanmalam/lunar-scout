@@ -10,6 +10,7 @@ Do these in order. Each one is something only the team can do.
 
 ## 2. Review what was written on 14 November
 - [ ] Wind and limits-of-life values for the 30 sites (`src/data/earthSites.ts`).
+- [ ] The nature explanations (`src/lib/baseNature.ts`) and the astronomy and engineering notes marked "background" (`src/data/knowledge.ts`).
 - [ ] Process labels for sites and targets (`processes:` in `earthSites.ts` and `targets.ts`).
 - [ ] The Mars rankings changed for Jezero, Gale and Utopia: update any slide that quotes them.
 
@@ -25,6 +26,6 @@ Do these in order. Each one is something only the team can do.
   3. Explore Earth: probe that candidate live with NASA and ESA data.
   4. Switch to Mars (Gale): Qaidam Basin, wind and salt processes, what Earth cannot copy.
   5. Analog within reach: from Kuala Lumpur, Western Australia is 79% as good as the Atacama and five times closer. This is the team's own idea, so say so.
-  6. Last 10 seconds only: the living base.
+  6. Last 10 seconds only: the living base. Press a building to pin its explanation in 3D, then Life > Nature at the base > Show me a dust storm (land on Mars first).
 - [ ] Paste `DATA_USED.md` and `AI_USE.md` into the project page.
 - [ ] Tick the terms checkbox and submit before the deadline.

@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GRID_SIZE, type BaseGrid } from '../lib/base'
 import type { LiveFrame } from '../lib/baseLive'
+import type { NatureNow } from '../lib/baseNature'
 import { LOOP_LENGTH, loopPoint } from '../lib/baseLife'
 import { createBaseLife } from './baseLife3d'
 import { buildModel, palette, type Apply, type Env } from './base3d/models'
@@ -25,7 +26,13 @@ export interface SceneProps {
   live?: LiveFrame | null
   /** Where the base is, to put Earth in the right part of the sky */
   site?: { lat: number; lon: number } | null
+  /** Natural events at this mission hour: meteoroid flashes, quakes, solar storms, dust devils, Phobos */
+  nature?: NatureNow | null
+  /** The explanation pinned to the selected building in the 3D view */
+  callout?: Callout | null
 }
+
+export interface Callout { title: string; status?: string; why: string; text: string; math?: string }
 
 /**
  * Looks for the base: the Moon (default), a cosy teal "sea" (the Moon's plains are called maria, seas),
@@ -133,6 +140,66 @@ void main(){ vec3 d = normalize(vDir); float h = clamp(d.y, 0.0, 1.0); vec3 c = 
   #include <colorspace_fragment>
 }`
 
+/** A soft round grain of dust, for particle clouds */
+function softDot() {
+  const c = document.createElement('canvas')
+  c.width = c.height = 64
+  const x = c.getContext('2d')!
+  const g = x.createRadialGradient(32, 32, 0, 32, 32, 32)
+  g.addColorStop(0, 'rgba(255,255,255,.95)'); g.addColorStop(0.35, 'rgba(255,255,255,.45)'); g.addColorStop(1, 'rgba(255,255,255,0)')
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64)
+  return new THREE.CanvasTexture(c)
+}
+
+/** Fresh ejecta round a new crater: a bright patch with uneven rays and a small dark pit */
+function splashTexture() {
+  const c = document.createElement('canvas')
+  c.width = c.height = 128
+  const x = c.getContext('2d')!
+  x.translate(64, 64)
+  const g = x.createRadialGradient(0, 0, 2, 0, 0, 30)
+  g.addColorStop(0, 'rgba(255,255,255,.95)'); g.addColorStop(1, 'rgba(255,255,255,0)')
+  x.fillStyle = g; x.beginPath(); x.arc(0, 0, 30, 0, 7); x.fill()
+  for (let k = 0; k < 13; k++) {
+    const a = (k / 13) * Math.PI * 2 + Math.random() * 0.35, len = 26 + Math.random() * 36, w = 0.05 + Math.random() * 0.07
+    const rg = x.createLinearGradient(0, 0, Math.cos(a) * len, Math.sin(a) * len)
+    rg.addColorStop(0, 'rgba(255,255,255,.8)'); rg.addColorStop(1, 'rgba(255,255,255,0)')
+    x.fillStyle = rg
+    x.beginPath(); x.moveTo(0, 0); x.lineTo(Math.cos(a - w) * len, Math.sin(a - w) * len); x.lineTo(Math.cos(a + w) * len, Math.sin(a + w) * len); x.fill()
+  }
+  x.fillStyle = 'rgba(40,36,32,.85)'; x.beginPath(); x.arc(0, 0, 3.2, 0, 7); x.fill()
+  const t = new THREE.CanvasTexture(c)
+  t.colorSpace = THREE.SRGBColorSpace
+  return t
+}
+
+/** Phobos: not round like our Moon, but a dark, lumpy rock with one huge crater */
+function phobosTexture() {
+  const c = document.createElement('canvas')
+  c.width = 96; c.height = 80
+  const x = c.getContext('2d')!
+  x.beginPath()
+  for (let k = 0; k <= 40; k++) {
+    const a = (k / 40) * Math.PI * 2, r = 1 + 0.07 * Math.sin(a * 3 + 1) + 0.05 * Math.sin(a * 5 + 2.3) + 0.03 * Math.sin(a * 9)
+    const px = 48 + Math.cos(a) * 40 * r, py = 40 + Math.sin(a) * 31 * r
+    if (k) x.lineTo(px, py); else x.moveTo(px, py)
+  }
+  x.closePath()
+  const g = x.createRadialGradient(34, 28, 4, 48, 40, 48)
+  g.addColorStop(0, '#d9cdbd'); g.addColorStop(0.7, '#a39686'); g.addColorStop(1, '#6f655a')
+  x.fillStyle = g; x.fill()
+  x.save(); x.clip()
+  for (const [px, py, r] of [[66, 36, 11], [38, 52, 6], [50, 22, 4], [28, 34, 3.5]]) { // Stickney, the big crater, and a few small ones
+    const cg = x.createRadialGradient(px + r * 0.3, py + r * 0.3, r * 0.2, px, py, r)
+    cg.addColorStop(0, 'rgba(70,62,54,.75)'); cg.addColorStop(0.8, 'rgba(70,62,54,.35)'); cg.addColorStop(1, 'rgba(235,225,210,.35)')
+    x.fillStyle = cg; x.beginPath(); x.arc(px, py, r, 0, 7); x.fill()
+  }
+  x.restore()
+  const t = new THREE.CanvasTexture(c)
+  t.colorSpace = THREE.SRGBColorSpace
+  return t
+}
+
 function glowSprite(inner: string, size: number) {
   const c = document.createElement('canvas')
   c.width = c.height = 256
@@ -148,6 +215,8 @@ function glowSprite(inner: string, size: number) {
 export default function BaseScene(props: SceneProps) {
   const box = useRef<HTMLDivElement>(null)
   const label = useRef<HTMLDivElement>(null)
+  const callout = useRef<HTMLDivElement>(null)
+  const specks = useRef<HTMLCanvasElement>(null)
   const live = useRef(props)
   live.current = props
   const api = useRef<{ sync: (grid: BaseGrid) => void; ghost: (id: ModuleId | null) => void; focus: (i: number | null) => void } | null>(null)
@@ -386,16 +455,16 @@ export default function BaseScene(props: SceneProps) {
     // Astronauts walking between modules and a rover driving its loop (lib/baseLife)
     const life = createBaseLife(scene, { mars })
     const anims: { obj: THREE.Object3D; t0: number; kind: 'drop' | 'pop' | 'out' }[] = []
-    const dust: { mesh: THREE.Mesh; v: THREE.Vector3; t0: number }[] = []
+    const dust: { mesh: THREE.Mesh; v: THREE.Vector3; t0: number; floor: number }[] = []
     const dustGeo = new THREE.SphereGeometry(0.09, 6, 4)
     const dustMat = new THREE.MeshBasicMaterial({ color: T.top, transparent: true, opacity: 0.7, depthWrite: false })
-    const puff = (at: THREE.Vector3, n = 14, reach = 0.6) => {
+    const puff = (at: THREE.Vector3, n = 14, reach = 0.6, groundY = 0, speed = 1) => {
       for (let k = 0; k < n; k++) {
         const a = (k / n) * Math.PI * 2 + Math.random() * 0.3
         const mesh = new THREE.Mesh(dustGeo, dustMat.clone())
-        mesh.position.set(at.x + Math.cos(a) * reach, 0.1, at.z + Math.sin(a) * reach)
+        mesh.position.set(at.x + Math.cos(a) * reach, groundY + 0.1, at.z + Math.sin(a) * reach)
         scene.add(mesh)
-        dust.push({ mesh, v: new THREE.Vector3(Math.cos(a) * 1.6, 0.5 + Math.random() * 0.5, Math.sin(a) * 1.6), t0: performance.now() })
+        dust.push({ mesh, floor: groundY, v: new THREE.Vector3(Math.cos(a) * 1.6 * speed, (0.5 + Math.random() * 0.5) * speed, Math.sin(a) * 1.6 * speed), t0: performance.now() })
       }
     }
     const disposeTree = (o: THREE.Object3D) => o.traverse(n => {
@@ -436,7 +505,13 @@ export default function BaseScene(props: SceneProps) {
       scene.add(ghost)
     }
     let focusCell: number | null = null
-    const setFocus = (i: number | null) => { focusCell = i; ring.visible = i != null; if (i != null) ring.position.set(centre(i).x, 0.06, centre(i).z) }
+    // Pressing a building turns the camera gently towards it, so its explanation sits in view
+    let glide: THREE.Vector3 | null = null
+    controls.addEventListener('start', () => { glide = null })
+    const setFocus = (i: number | null) => {
+      focusCell = i; ring.visible = i != null
+      if (i != null) { ring.position.set(centre(i).x, 0.06, centre(i).z); glide = centre(i).setY(0.4) } else glide = null
+    }
     api.current = { sync, ghost: setGhost, focus: setFocus }
     sync(live.current.grid)
     setGhost(live.current.selected)
@@ -504,6 +579,7 @@ export default function BaseScene(props: SceneProps) {
       const w = el.clientWidth, h = el.clientHeight
       if (!w || !h) return
       renderer.setSize(w, h, false)
+      if (specks.current) { specks.current.width = w; specks.current.height = h }
       camera.aspect = w / h
       camera.updateProjectionMatrix()
     }
@@ -528,6 +604,58 @@ export default function BaseScene(props: SceneProps) {
     const tmp = new THREE.Vector3(), sunDir = DEFAULT_SUN.clone(), env: Env = { sun: sunDir, earth: earthDir, t: 0, dt: 0, dark: false }
     const skyTop = new THREE.Color(), skyHor = new THREE.Color()
     let dayK = 1, landerWas = ''
+
+    // ---------- Nature (lib/baseNature): drawn here, explained on the Base screen ----------
+    // A meteoroid strike: a flash of light, then dust thrown out in clean arcs
+    const flashLight = new THREE.PointLight('#fff6e0', 0, 90, 1.2)
+    const flash = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowSprite('rgba(255,250,235,1)', 0.12), depthWrite: false, fog: false, transparent: true, opacity: 0, blending: THREE.AdditiveBlending }))
+    flash.scale.setScalar(9)
+    flash.visible = false
+    scene.add(flashLight, flash)
+    let impactSeen = -1, flashAt = -1e9, quakeSeen = -1, shakeUntil = 0
+    // Fresh craters: a meteoroid strike leaves a small bright splash of ejecta with rays
+    const splashTex = splashTexture()
+    const splashGeo = new THREE.PlaneGeometry(1, 1)
+    const splashes: THREE.Mesh[] = []
+    // Dust devils: thousands of dust grains spiralling up a leaning column, with a skirt of dust at the foot
+    const soft = softDot()
+    const DN = low ? 150 : 340, DEVIL_H = 9
+    const devils = mars ? [0, 1].map(i => {
+      const seed = new Float32Array(DN * 4) // start height, angle, speed, radius spread
+      for (let k = 0; k < DN * 4; k++) seed[k] = Math.random()
+      const geo = new THREE.BufferGeometry()
+      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(DN * 3), 3))
+      const pts = new THREE.Points(geo, new THREE.PointsMaterial({ map: soft, color: '#cf9f78', size: 2.3, sizeAttenuation: true, transparent: true, opacity: 0, depthWrite: false }))
+      pts.frustumCulled = false
+      pts.userData = { phase: 3.5 + i * 1.1, radius: 14 + i * 5, show: 0, seed } // start on the far side of the base, in view
+      pts.visible = false
+      scene.add(pts)
+      return pts
+    }) : []
+    // Dust storm: grit streaming past close to the ground, on top of the thickened air
+    const SN = low ? 320 : 900, GRIT = 48
+    const grit = mars ? (() => {
+      const pos = new Float32Array(SN * 3), speed = new Float32Array(SN)
+      for (let k = 0; k < SN; k++) {
+        pos.set([(Math.random() * 2 - 1) * GRIT, 0.15 + Math.random() ** 2 * 7, (Math.random() * 2 - 1) * GRIT], k * 3)
+        speed[k] = 0.6 + Math.random() * 0.8
+      }
+      const geo = new THREE.BufferGeometry()
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+      const pts = new THREE.Points(geo, new THREE.PointsMaterial({ map: soft, color: '#d2a078', size: 0.6, sizeAttenuation: true, transparent: true, opacity: 0, depthWrite: false }))
+      pts.frustumCulled = false
+      pts.userData = { speed }
+      pts.visible = false
+      scene.add(pts)
+      return pts
+    })() : null
+    // Phobos: Mars' small, lumpy inner moon
+    const phobos = mars ? new THREE.Sprite(new THREE.SpriteMaterial({ map: phobosTexture(), depthWrite: false, fog: false, transparent: true, opacity: 0 })) : null
+    if (phobos) { phobos.scale.set(11, 9, 1); phobos.visible = false; scene.add(phobos) }
+    // Radiation specks on the camera during a solar particle storm
+    let specksAt = 0, specksOn = false
+    const pin = new THREE.Vector3()
+
     const frame = () => {
       raf = requestAnimationFrame(frame)
       if (document.hidden) return
@@ -539,7 +667,10 @@ export default function BaseScene(props: SceneProps) {
         camera.position.lerpVectors(startPos, endPos, e)
         camera.lookAt(look.copy(startLook).lerp(controls.target, e))
         if (k >= 1) controls.enabled = true
-      } else controls.update()
+      } else {
+        if (glide) { controls.target.lerp(glide, Math.min(1, dt * 3.5)); if (controls.target.distanceToSquared(glide) < 0.002) glide = null }
+        controls.update()
+      }
       // keep the camera above the ground
       const floor = height(camera.position.x, camera.position.z) + 0.6
       if (camera.position.y < floor) camera.position.y = floor
@@ -562,7 +693,7 @@ export default function BaseScene(props: SceneProps) {
         pd.v.y -= (mars ? 3.7 : 1.6) * dt
         ;(pd.mesh.material as THREE.MeshBasicMaterial).opacity = 0.7 * (1 - k)
         pd.mesh.scale.setScalar(1 + k * 1.5)
-        if (k >= 1 || pd.mesh.position.y < 0) { scene.remove(pd.mesh); (pd.mesh.material as THREE.Material).dispose(); dust.splice(d, 1) }
+        if (k >= 1 || pd.mesh.position.y < pd.floor) { scene.remove(pd.mesh); (pd.mesh.material as THREE.Material).dispose(); dust.splice(d, 1) }
       }
       scene.traverse(n => { if (n.userData.blink !== undefined) n.visible = (t * 0.9 + n.userData.blink) % 1 < 0.55; else if (n.userData.earth) n.rotation.y += dt * 0.004 })
       ringMat.opacity = 0.55 + 0.35 * Math.sin(t * 4)
@@ -583,6 +714,7 @@ export default function BaseScene(props: SceneProps) {
         sunDir.lerp(tmp, Math.min(1, dt * 4)).normalize()
         dayTarget = F.mars ? smooth(-7, 9, F.sun.elev) : light
         stormK = F.mars ? Math.min(1, Math.max(0, ((F.sun.tau ?? 0.5) - 0.7) / 3)) : 0
+        stormK = Math.max(stormK, live.current.nature?.dust ?? 0) // a storm shown on demand
       } else sunDir.copy(DEFAULT_SUN)
       dayK += (dayTarget - dayK) * Math.min(1, dt * 3)
       env.t = t; env.dt = dt; env.dark = dayK < 0.4
@@ -596,7 +728,7 @@ export default function BaseScene(props: SceneProps) {
       skyTop.copy(nightTop).lerp(dayTop, dayK).multiplyScalar(1 - 0.45 * stormK)
       skyHor.copy(nightHor).lerp(dayHor, dayK).multiplyScalar(1 - 0.3 * stormK)
       ;(scene.background as THREE.Color).copy(skyHor)
-      if (fog) { fog.color.copy(skyHor); fog.far = T.fogFar * (1 - 0.72 * stormK) }
+      if (fog) { fog.color.copy(skyHor); fog.far = T.fogFar * (1 - 0.8 * stormK); fog.near = 40 * (1 - 0.9 * stormK) } // in a storm the haze starts at your feet
       skyU.top.value.copy(skyTop); skyU.horizon.value.copy(skyHor); skyU.sunDir.value.copy(sunDir)
       skyU.glowK.value = (mars ? 0.25 + 0.75 * (1 - smooth(0, 25, F?.sun.elev ?? 30)) : 0.3) * (sunDir.y > -0.1 ? 1 : 0) * (1 - stormK * 0.7)
       if (stars) stars.opacity = mars ? 1 - dayK : 0.4 + 0.6 * (1 - dayK)
@@ -615,6 +747,122 @@ export default function BaseScene(props: SceneProps) {
           if (landerWas && cell.lander.phase === 'landed') puff(m.obj.position, 26, 0.9)
           landerWas = cell.lander.phase
         }
+      }
+      // Nature: meteoroid flash, moonquake, dust devils, Phobos
+      const N = live.current.nature ?? null
+      if (N?.impact && N.impact.id !== impactSeen && now - flashAt > 3000) {
+        impactSeen = N.impact.id
+        {
+          flashAt = now
+          let x = Math.cos(N.impact.angle) * N.impact.dist, z = Math.sin(N.impact.angle) * N.impact.dist
+          if (N.impact.id < 0) {
+            // Shown on demand: put it where the camera is looking, beyond the base, so it is not missed
+            const fx = controls.target.x - camera.position.x, fz = controls.target.z - camera.position.z, fl = Math.hypot(fx, fz) || 1
+            const far = 13 + (N.impact.dist % 7), side = (N.impact.angle / Math.PI - 1) * 7
+            x = controls.target.x + (fx / fl) * far - (fz / fl) * side
+            z = controls.target.z + (fz / fl) * far + (fx / fl) * side
+          }
+          const y = height(x, z)
+          flash.position.set(x, y + 0.6, z)
+          flashLight.position.set(x, y + 2, z)
+          if (!still) puff(flash.position, 30, 0.3, y, 3.2)
+          // What stays behind: a bright splash of fresh ejecta (fresh lunar craters are bright; they darken over ages)
+          const sp = new THREE.Mesh(splashGeo, new THREE.MeshBasicMaterial({ map: splashTex, transparent: true, opacity: 0.85, depthWrite: false, color: T.rim }))
+          sp.rotation.set(-Math.PI / 2, 0, Math.random() * 6.28)
+          sp.position.set(x, y + 0.05, z)
+          sp.scale.setScalar(2.4 + Math.random() * 2.6)
+          scene.add(sp); splashes.push(sp)
+          if (splashes.length > 8) { const old = splashes.shift()!; scene.remove(old); (old.material as THREE.Material).dispose() }
+        }
+      }
+      // The flash itself lasts a fraction of a second: a sharp peak, then a quick fade
+      const fk = (now - flashAt) / 380
+      flash.visible = fk < 1
+      flash.material.opacity = fk < 1 ? Math.pow(1 - fk, 2.2) : 0
+      flash.scale.setScalar(fk < 1 ? 5 + 9 * Math.pow(1 - fk, 3) : 5)
+      flashLight.intensity = fk < 1 ? 320 * Math.pow(1 - fk, 3) : 0
+      if (N?.quake != null && N.quake !== quakeSeen) { shakeUntil = now + 900; quakeSeen = N.quake }
+      if (now < shakeUntil && !still) { const a = (shakeUntil - now) / 900; scene.position.set((Math.random() - 0.5) * 0.07 * a, (Math.random() - 0.5) * 0.04 * a, (Math.random() - 0.5) * 0.07 * a) }
+      else scene.position.set(0, 0, 0)
+      devils.forEach((d, i) => {
+        const u = d.userData as { phase: number; radius: number; show: number; seed: Float32Array }
+        u.show += ((i < (N?.dustDevils ?? 0) ? 1 : 0) - u.show) * Math.min(1, dt * 0.8)
+        d.visible = u.show > 0.02
+        if (!d.visible) return
+        const a = u.phase + t * 0.012 * (i ? -1 : 1), x = Math.cos(a) * u.radius + Math.sin(t * 0.21 + i) * 3, z = Math.sin(a) * u.radius + Math.cos(t * 0.17 + i) * 3
+        d.position.set(x, height(x, z), z)
+        const pos = d.geometry.attributes.position as THREE.BufferAttribute, sd = u.seed
+        for (let k = 0; k < DN; k++) {
+          const skirt = sd[k * 4 + 3] < 0.22 // some dust never gets lifted: it swirls round the foot
+          const hh = skirt ? ((sd[k * 4] + t * 0.05) % 1) * 0.1 : (sd[k * 4] + t * (0.1 + 0.12 * sd[k * 4 + 2])) % 1
+          // The column is narrow at the ground and widens with height; grains near the middle turn fastest
+          const r = skirt ? 0.5 + 1.7 * sd[k * 4 + 2] : (0.16 + 1.05 * Math.pow(hh, 1.3)) * (0.55 + 0.9 * sd[k * 4 + 3])
+          const ang = sd[k * 4 + 1] * 6.283 + t * (4.6 / (0.45 + r))
+          // It leans and snakes, as the wind higher up pushes the top along
+          const bx = Math.sin(hh * 2.4 + t * 0.5 + i) * 1.1 * hh + hh * hh * 1.4, bz = Math.cos(hh * 1.8 + t * 0.4 + i * 2) * 0.7 * hh
+          pos.setXYZ(k, Math.cos(ang) * r + bx, hh * DEVIL_H + (skirt ? 0.1 : 0), Math.sin(ang) * r + bz)
+        }
+        pos.needsUpdate = true
+        ;(d.material as THREE.PointsMaterial).opacity = 0.2 * u.show * (1 - 0.5 * (N?.dust ?? 0)) // many faint grains add up to a hazy column
+      })
+      if (grit) {
+        const k0 = N?.dust ?? 0, m = grit.material as THREE.PointsMaterial
+        m.opacity += (0.55 * k0 - m.opacity) * Math.min(1, dt * 1.5)
+        grit.visible = m.opacity > 0.01
+        if (grit.visible && !still) {
+          const pos = grit.geometry.attributes.position as THREE.BufferAttribute, sp = grit.userData.speed as Float32Array, arr = pos.array as Float32Array
+          for (let k = 0; k < SN; k++) {
+            arr[k * 3] += 9 * sp[k] * dt
+            arr[k * 3 + 2] += 1.6 * sp[k] * dt
+            arr[k * 3 + 1] += Math.sin(t * 3 + k) * 0.25 * dt
+            if (arr[k * 3] > GRIT) arr[k * 3] -= GRIT * 2
+            if (arr[k * 3 + 2] > GRIT) arr[k * 3 + 2] -= GRIT * 2
+          }
+          pos.needsUpdate = true
+        }
+      }
+      // Radiation specks: each one is a charged particle striking the camera's sensor, so they are random and brief
+      const sc = specks.current
+      if (sc) {
+        const k1 = N?.solar ?? 0
+        if (k1 > 0 && now - specksAt > (still ? 1500 : 70)) {
+          specksAt = now; specksOn = true
+          const ctx = sc.getContext('2d')
+          if (ctx) {
+            ctx.clearRect(0, 0, sc.width, sc.height)
+            const n = Math.round((k1 * sc.width * sc.height) / 5200)
+            for (let q = 0; q < n; q++) {
+              const px = Math.random() * sc.width, py = Math.random() * sc.height, bright = 0.45 + Math.random() * 0.55
+              ctx.fillStyle = ctx.strokeStyle = `rgba(255,255,255,${bright.toFixed(2)})`
+              if (Math.random() < 0.14) { // a particle that crossed the sensor at an angle leaves a short track
+                const ang = Math.random() * Math.PI, len = 4 + Math.random() * 14
+                ctx.lineWidth = 1
+                ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + Math.cos(ang) * len, py + Math.sin(ang) * len); ctx.stroke()
+              } else { const sz = Math.random() < 0.2 ? 2 : 1; ctx.fillRect(px, py, sz, sz) }
+            }
+          }
+        } else if (k1 <= 0 && specksOn) { specksOn = false; sc.getContext('2d')?.clearRect(0, 0, sc.width, sc.height) }
+      }
+      if (phobos) {
+        const ph = N?.phobos
+        phobos.material.opacity += ((ph && ph.elev > 1 ? 0.95 * (1 - dayK) : 0) - phobos.material.opacity) * Math.min(1, dt * 2)
+        phobos.visible = phobos.material.opacity > 0.02
+        if (ph) { const e = ph.elev * RAD, a = ph.az * RAD; phobos.position.set(Math.cos(a) * Math.cos(e), Math.sin(e), Math.sin(a) * Math.cos(e)).multiplyScalar(1500) }
+      }
+      // The explanation pinned above the selected building
+      const co = callout.current
+      if (co) {
+        let show = false
+        if (focusCell != null && live.current.callout) {
+          pin.copy(centre(focusCell)).setY(2.7).project(camera)
+          if (pin.z < 1 && Math.abs(pin.x) < 1.15 && Math.abs(pin.y) < 1.15) {
+            const w = el.clientWidth, h = el.clientHeight, half = co.offsetWidth / 2 + 8
+            const x = Math.min(w - half, Math.max(half, (pin.x * 0.5 + 0.5) * w)), y = Math.max(co.offsetHeight + 8, (-pin.y * 0.5 + 0.5) * h)
+            co.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`
+            show = true
+          }
+        }
+        co.style.opacity = show ? '1' : '0'
       }
       renderer.render(scene, camera)
       if (!t0) t0 = performance.now()
@@ -651,6 +899,19 @@ export default function BaseScene(props: SceneProps) {
   return (
     <div className="base-scene" ref={box}>
       <div className="bs-preview" ref={label} aria-hidden="true" />
+      {(props.nature?.dust ?? 0) > 0.05 && <div className="bs-dust" style={{ opacity: Math.min(1, props.nature!.dust * 1.15) }} aria-hidden="true" />}
+      <canvas className="bs-specks" ref={specks} aria-hidden="true" />
+      <div className="bs-callout" ref={callout} aria-hidden="true">
+        {props.callout && (
+          <>
+            <strong>{props.callout.title}</strong>
+            {props.callout.status && <span className="bc-status">{props.callout.status}</span>}
+            <span className="bc-why">{props.callout.why}</span>
+            <span className="bc-text">{props.callout.text}</span>
+            {props.callout.math && <span className="bc-math">{props.callout.math}</span>}
+          </>
+        )}
+      </div>
     </div>
   )
 }

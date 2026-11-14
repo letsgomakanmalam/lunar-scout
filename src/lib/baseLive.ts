@@ -18,6 +18,7 @@
  */
 import type { ModuleId, PlanetTarget } from '../data/types'
 import type { BaseGrid, PlacedModule } from './base'
+import { solarStormAt } from './baseNature'
 import {
   CREW, FARM_FOOD, ICE_KG, LUNAR_DAY_H, O2_MARS, O2_MOON, REACTOR_KW, SOLAR_KW, SOL_H, START_DAYS, STORE_KWH,
   envFor, hardwareOf, resupply, startStocks, stepHour, sunAt, type Hardware, type SiteEnv, type Stocks, type SunNow,
@@ -375,7 +376,8 @@ export function frameFor(grid: BaseGrid, site: PlanetTarget, snap: Snapshot): Li
   const soc = hw.storeKWh ? Math.min(1, snap.stored / hw.storeKWh) : null
   const built = { built: snap.built ?? grid.map(m => (m ? { id: m.id, h: 0 } : null)) }
   const age = (cell: number) => ageOf(built, cell, hour)
-  const ctx: CrewCtx = { dark: sun.dark, failed, storm, hasFarm: grid.some(m => m?.id === 'farm'), hasLab: grid.some(m => m?.id === 'lab') }
+  // Nobody works outside in a dust storm, or while a solar particle storm is raising the radiation (lib/baseNature)
+  const ctx: CrewCtx = { dark: sun.dark, failed, storm: storm || solarStormAt(hour) > 0, hasFarm: grid.some(m => m?.id === 'farm'), hasLab: grid.some(m => m?.id === 'lab') }
   const day = clock.day - 1
   const duties = Array.from({ length: hw.crew }, (_, i) => dutyAt(i, hw.crew, clock.hod, day, ctx))
   const insideAll = duties.filter(d => d !== 'eva').length

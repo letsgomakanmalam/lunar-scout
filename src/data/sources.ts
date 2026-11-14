@@ -46,6 +46,12 @@ export const SOURCES: DataSource[] = [
   { id: 'tianwen1', name: 'CNSA Tianwen-1 / Zhurong data (Lunar and Planetary Data Release System)', agency: 'CNSA', url: 'https://moon.bao.ac.cn/' },
   { id: 'marstrek', name: 'NASA Mars Trek', agency: 'NASA', url: 'https://trek.nasa.gov/mars/' },
 
+  // Astronomy and engineering notes
+  { id: 'nssdc', name: 'NASA Planetary Fact Sheets (NSSDCA)', agency: 'NASA', url: 'https://nssdc.gsfc.nasa.gov/planetary/factsheet/index.html' },
+  { id: 'moxie', name: "NASA JPL: MOXIE oxygen experiment completes its Mars mission (2023)", agency: 'NASA', url: 'https://www.jpl.nasa.gov/news/nasas-oxygen-generating-experiment-moxie-completes-mars-mission/' },
+  { id: 'background', name: 'Background from NASA mission histories and standard textbooks (not a dataset)', agency: 'Other', url: 'https://science.nasa.gov/moon/' },
+  { id: 'computed', name: 'Worked out in the app from the values shown (basic physics)', agency: 'Other', url: 'https://nssdc.gsfc.nasa.gov/planetary/factsheet/fact_notes.html' },
+
   // Analog programmes
   { id: 'csa-analog', name: 'Canadian Space Agency analogue missions', agency: 'CSA', url: 'https://www.asc-csa.gc.ca/eng/' },
   { id: 'isro-hope', name: 'ISRO HOPE analog mission, Tso Kar (2025)', agency: 'ISRO', url: 'https://www.isro.gov.in/Space_Analog_Mission.html' },

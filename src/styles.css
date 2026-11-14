@@ -1378,3 +1378,49 @@ label { display: grid; gap: .35rem; font: 600 .8rem var(--head); letter-spacing:
   .tr-score { grid-column: 2; }
   .tr-why { grid-column: 3; grid-row: 1; }
 }
+
+/* ---------- Astronomy and engineering notes ---------- */
+.know { margin: .5rem 0 .8rem; border: 1px solid var(--line); background: rgba(255, 255, 255, .02); }
+.know summary { padding: .5rem .7rem; cursor: pointer; color: var(--foil-hi); font: 600 .8rem var(--head); letter-spacing: .06em; }
+.know[open] summary { border-bottom: 1px solid var(--line); }
+.know-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: .6rem; padding: .7rem; }
+.know-note { display: grid; align-content: start; gap: .3rem; padding: .6rem .75rem; border-left: 3px solid #72b6ff; background: rgba(9, 14, 24, .7); font-size: .9rem; }
+.know-note.k-engineering { border-left-color: var(--foil); }
+.know-note strong { color: #fff; font: 600 1rem var(--head); letter-spacing: .01em; }
+.know-note p { margin: 0; color: var(--regolith); line-height: 1.5; }
+.know-math { padding: .3rem .5rem; background: rgba(255, 255, 255, .04); color: #cfe3ff !important; font: 500 .82rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap: anywhere; }
+.know-math span { margin-right: .5rem; color: var(--dust); font: 600 .66rem var(--head); letter-spacing: .12em; text-transform: uppercase; }
+.know-note a { color: var(--dust); font-size: .76rem; }
+.focus-card .know { margin: .5rem 0 .2rem; }
+.focus-card .know-list { padding: .5rem; }
+
+/* ---------- Base: explanation pinned to a building in 3D, and natural events ---------- */
+.bs-callout { position: absolute; left: 0; top: 0; z-index: 2; display: grid; gap: .2rem; width: min(320px, 76vw); padding: .6rem .75rem .65rem; border: 1px solid rgba(114, 182, 255, .65); border-left-width: 3px; background: rgba(7, 11, 20, .93); box-shadow: 0 8px 26px rgba(0, 0, 0, .55); color: var(--regolith); font-size: .82rem; line-height: 1.4; opacity: 0; pointer-events: none; transition: opacity .2s; will-change: transform; }
+.bs-callout::after { content: ''; position: absolute; left: 50%; bottom: -9px; width: 0; height: 0; margin-left: -8px; border: 8px solid transparent; border-bottom: 0; border-top-color: rgba(114, 182, 255, .65); }
+.bs-callout strong { color: #fff; font: 700 1rem var(--head); letter-spacing: .04em; text-transform: uppercase; }
+.bc-status { color: var(--good); }
+.bc-why { margin-top: .2rem; color: var(--foil-hi); font: 600 .78rem var(--head); letter-spacing: .08em; text-transform: uppercase; }
+.bc-text { color: var(--dust); }
+.bc-math { padding: .2rem .4rem; background: rgba(255, 255, 255, .05); color: #cfe3ff; font: 500 .74rem ui-monospace, Menlo, Consolas, monospace; }
+@media (max-width: 760px) { .bs-callout .bc-text, .bs-callout .bc-math { display: none; } }
+.ms-nature { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .4rem; }
+.ms-nature button { min-height: 26px; padding: 0 .45rem; border: 1px solid rgba(114, 182, 255, .45); background: rgba(114, 182, 255, .08); color: #cfe3ff; font: 600 .66rem var(--head); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+.ms-nature button.warn { border-color: rgba(255, 111, 94, .7); background: rgba(255, 111, 94, .12); color: #ffc9c1; }
+.ms-nature button:hover { color: #fff; border-color: #fff; }
+.nature-list { display: grid; gap: .5rem; margin: 0 0 .6rem; padding: 0; list-style: none; }
+.nature-list li { padding: .55rem .7rem; border: 1px solid var(--line); border-left: 3px solid #72b6ff; background: rgba(13, 19, 32, .7); font-size: .88rem; }
+.nature-list li.warn { border-left-color: var(--bad); }
+.nature-list li.idle { border-left-color: var(--line-2); opacity: .85; }
+.nature-list strong { display: block; color: #fff; font: 700 1rem var(--head); }
+.nature-list p { margin: .25rem 0 0; color: var(--dust); }
+.nature-list p b { color: var(--foil-hi); font: 600 .72rem var(--head); letter-spacing: .1em; text-transform: uppercase; margin-right: .35rem; }
+.nature-list em { color: var(--good); font: 600 .7rem var(--head); font-style: normal; letter-spacing: .1em; text-transform: uppercase; }
+@media (max-width: 760px) { .ms-nature { display: none; } }
+/* Dust storm: a brown veil that thickens and thins as gusts go by (the streaming grit is drawn in 3D) */
+.bs-dust { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; background: linear-gradient(180deg, rgba(126, 78, 48, .5), rgba(158, 100, 62, .3) 50%, rgba(140, 86, 52, .46)); transition: opacity 1.2s; }
+.bs-dust::before, .bs-dust::after { content: ''; position: absolute; inset: -30% -100%; background-image: radial-gradient(ellipse 34% 60% at 20% 55%, rgba(196, 134, 88, .34), transparent 70%), radial-gradient(ellipse 28% 48% at 55% 35%, rgba(176, 116, 74, .3), transparent 70%), radial-gradient(ellipse 30% 55% at 85% 65%, rgba(204, 142, 96, .3), transparent 70%); background-size: 50% 100%; animation: bs-dust 11s linear infinite; }
+.bs-dust::after { animation-duration: 17s; animation-direction: normal; opacity: .8; background-size: 25% 100%; filter: blur(6px); }
+@keyframes bs-dust { from { transform: translateX(-25%); } to { transform: translateX(25%); } }
+@media (prefers-reduced-motion: reduce) { .bs-dust::before, .bs-dust::after { animation: none; } }
+.bs-specks { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; pointer-events: none; }
+.nature-list .chip-btn { margin-top: .45rem; }
