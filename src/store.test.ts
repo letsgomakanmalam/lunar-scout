@@ -14,6 +14,16 @@ describe('saves and unlocks', () => {
     expect(migrateSave({ landingId: 'copernicus' }, 1).landingId).toBeNull()
     expect(migrateSave({ landingId: 'shackleton' }, 1).landingId).toBe('shackleton')
   })
+  it('keeps probes from older saves working when new factors are added', () => {
+    const f = { value: 0.5, raw: 'x', sourceId: 'power', estimate: false }
+    const old = { id: 'probe-1', name: 'Field probe', factors: { thermal: f, aridity: f } }
+    const out = migrateSave({ discoveries: [old, null] }, 2).discoveries as { factors: Record<string, { value: number | null }> }[]
+    expect(out).toHaveLength(1)
+    expect(out[0].factors.thermal.value).toBe(0.5)
+    expect(out[0].factors.wind.value).toBeNull()
+    expect(out[0].factors.life.value).toBeNull()
+    expect(Object.keys(out[0].factors)).toHaveLength(15)
+  })
   it('opens the Moon track step by step and Mars after any passed mission', () => {
     expect(missionUnlocked('tutorial', {})).toBe(true)
     expect(missionUnlocked('ice', {})).toBe(true)

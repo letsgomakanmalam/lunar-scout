@@ -68,9 +68,9 @@ export interface Crop { id: 'lettuce' | 'radish' | 'wheat' | 'potato'; name: str
 /** How long each crop takes from seed to harvest, from real space and ground experiments. */
 export const CROPS: Crop[] = [
   { id: 'lettuce', name: 'Red romaine lettuce', days: 33, note: 'Grown for 33 days in the Veggie unit on the International Space Station (Veg-01).' },
-  { id: 'radish', name: 'Radishes', days: 27, note: 'Grown for 27 days in the Advanced Plant Habitat on the International Space Station (Plant Habitat-02).' },
-  { id: 'wheat', name: 'Dwarf wheat', days: 62, note: 'A short wheat bred with NASA for space farms; ready in about two months.' },
-  { id: 'potato', name: 'Potatoes', days: 105, note: 'About 105 days in NASA\'s Biomass Production Chamber tests.' },
+  { id: 'radish', name: 'Radishes', days: 27, note: 'About 27 days to maturity in the Advanced Plant Habitat on the International Space Station (Plant Habitat-02).' },
+  { id: 'wheat', name: 'Wheat', days: 80, note: "77 to 86 days from planting to harvest in NASA's Biomass Production Chamber tests." },
+  { id: 'potato', name: 'Potatoes', days: 105, note: "Harvested 91 or 105 days after planting in NASA's Biomass Production Chamber tests." },
 ]
 /** Beds in a greenhouse at level 1 and 2, as indexes into CROPS */
 export const BEDS: [number[], number[]] = [[0, 1, 2, 3], [0, 1, 2, 3, 0, 1]]

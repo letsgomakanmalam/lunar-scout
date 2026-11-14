@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { EarthSite, ModuleId } from './data/types'
+import { FACTOR_KEYS, type EarthSite, type ModuleId } from './data/types'
 import { MODULES, moduleById } from './data/modules'
 import { MISSIONS, missionById, worldOfMission } from './data/missions'
 import { BASE_RATE, advanceLive, initLive, missionHours, type LiveState } from './lib/baseLive'
@@ -408,7 +408,7 @@ export const useGame = create<GameState>()(
     }),
     {
       name: 'lunar-scout-v1',
-      version: 2,
+      version: 3,
       // Saves from before Mars: the Apollo 17 valley was the easy landing site, now the flat Mons Mouton plateau.
       migrate: (persisted, version) => migrateSave(persisted as Record<string, unknown>, version) as unknown as GameState,
       partialize: s => {
@@ -429,6 +429,14 @@ export function migrateSave(p: Record<string, unknown>, version: number): Record
     const completed = (out.completed ?? {}) as Record<string, MissionRecord>
     out.completed = Object.fromEntries(Object.entries(completed).filter(([id]) => MISSIONS.some(m => m.id === id)))
     if (!Array.isArray(out.discoveries)) out.discoveries = []
+  }
+  if (version < 3 && Array.isArray(out.discoveries)) {
+    // Probes saved before a factor existed get it as "no data", so they still open, score and export
+    out.discoveries = (out.discoveries as EarthSite[]).filter(d => d && typeof d === 'object' && d.factors).map(d => {
+      const factors = { ...d.factors }
+      for (const k of FACTOR_KEYS) factors[k] ??= { value: null, raw: 'Not measured when this place was probed: probe it again', sourceId: 'power', estimate: false }
+      return { ...d, factors }
+    })
   }
   return out
 }

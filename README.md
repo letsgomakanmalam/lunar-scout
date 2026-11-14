@@ -121,6 +121,8 @@ The challenge asks for more than places that look alike. Three additions answer 
 - **Limits of life (habitability)** (new factor). Live probe: 1 minus the share of months with liquid water (above 0 °C with at least 10 mm of rain), from NASA POWER. In the global search it is a climate-zone proxy. Used for Mars sites, most of all the rover sites that look for signs of life.
 - **Processes** (new labels). Every Earth site and every Moon and Mars site lists what shapes it: impact cratering, volcanism, wind erosion and dust, sediment laid down by water, ice and frozen ground, evaporation and salt crusts, acid and hot-water alteration. The Twin finder and both reports show which processes a twin shares with the target, and say so when a match is in conditions only.
 
+Every site panel also links to the data portals the challenge lists (NASA Worldview, NASA Earthdata Search, ESA Copernicus Browser, CSA RADARSAT, JAXA G-Portal) for a closer look. These are links; the app does not read RADARSAT or G-Portal data.
+
 Honest limits: for the 30 listed sites the two new factors and all process labels are team readings of published descriptions, labelled as estimates. The live limits-of-life measure only counts liquid water, so it cannot see acid or salt. Wind is not in the global search grid. The wind request to NASA POWER could not be tested from the build machine; if the service refuses it, the probe carries on and shows wind as "no data".
 
 ## The living base (new)
@@ -130,10 +132,10 @@ The Base screen now runs on a mission clock instead of standing still.
 - **Clock**: one real second is one mission minute. Speed buttons go up to six hours a second, or pause. The clock keeps running at normal speed while the game is closed.
 - **Sun**: placed where it would be at the landing site at that hour. At Shackleton it circles the horizon and sometimes slips behind the ridge; on Mars there are days, nights and a dust storm.
 - **Crew**: an International Space Station style day (8.5 h sleep, three meals, two work blocks, two hours of exercise). Astronauts only go outside in pairs, and stay in during dust storms.
-- **Greenhouse**: a crew member sows one bed every three days. Each crop takes as long as it really did: red romaine lettuce 33 days (Veg-01 on the ISS), radishes 27 days (Plant Habitat-02 on the ISS), dwarf wheat about 62 days, potatoes about 105 days (NASA Biomass Production Chamber). Food is added at harvest, then the bed is sown again.
+- **Greenhouse**: a crew member sows one bed every three days. Each crop takes as long as it really did: red romaine lettuce 33 days (Veg-01 on the ISS), radishes 27 days (Plant Habitat-02 on the ISS), wheat 80 days and potatoes 105 days (NASA Biomass Production Chamber tests: wheat 77 to 86 days, potatoes 91 or 105). Food is added at harvest, then the bed is sown again.
 - **Everything else**: solar arrays turn to the Sun, batteries charge and drain, a cargo lander comes every 30 days, a regolith berm takes weeks to print, windows go dark when the crew sleeps.
 - **Graphics**: real terrain with craters, boulders and hills, a black lunar sky with stars and Earth in the right place, long polar shadows, a dusty Martian sky, and buildings modelled on real hardware.
 
 Code: `src/lib/baseLive.ts` (rules, tested in `baseLive.test.ts`), `src/components/BaseScene.tsx` and `src/components/base3d/models.ts` (3D). Power, air, water and food use the same hour-by-hour model as the 60-day test (`stepHour` in `src/lib/baseSim.ts`).
 
-Simplified on purpose: crops do not die when the lights go out, the Mars season stays winter, and a crew that runs out of supplies is flown home and replaced rather than lost. Wheat and potato times are typical test-chamber values, not one specific experiment.
+Simplified on purpose: crops do not die when the lights go out, the Mars season stays winter, and a crew that runs out of supplies is flown home and replaced rather than lost. Crop times were checked against NASA sources on 14 November 2026.

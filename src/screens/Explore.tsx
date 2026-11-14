@@ -14,6 +14,7 @@ import { FACTOR_KEYS, FACTOR_LABELS, PROCESS_LABELS, WORLD_LABEL, type FactorKey
 import { sourceById } from '../data/sources'
 import { computeASI, strengthsAndWeaknesses } from '../lib/scoring'
 import { fmtCoords } from '../lib/format'
+import { agencyLinks } from '../lib/agencyLinks'
 import { distanceKm, formatDistance, nearest } from '../lib/geo'
 import { STEPS, runProbe, type StepId, type StepState } from '../lib/probeFetch'
 import { NEW_ANALOG_ASI, NEW_ANALOG_KM, looksLikeSea, probeFactors, probeSite } from '../lib/probe'
@@ -263,6 +264,12 @@ export default function Explore() {
             <p>{site.description}</p>
             {site.analogUse && <p className="meta"><Icon name="flag" size={14} /> Used for: {site.analogUse}</p>}
             {!!site.processes?.length && <ul className="proc-chips" aria-label="Processes at work here">{site.processes.map(p => <li key={p}>{PROCESS_LABELS[p]}</li>)}</ul>}
+            <details className="agency-links">
+              <summary>Look closer with space agency data</summary>
+              <ul>
+                {agencyLinks(site.lat, site.lon).map(l => <li key={l.name}><a href={l.url} target="_blank" rel="noreferrer">{l.name}</a><span>{l.note}</span></li>)}
+              </ul>
+            </details>
             {site.status === 'discovery' && best && nearestListed && (
               <p className="tip"><Icon name="info" size={18} /><span>
                 Best match: {best.target.name} ({WORLD_LABEL[best.target.world]}), {best.asi}. Nearest listed analog: {nearestListed.item.name}, {formatDistance(nearestListed.km, g.mapPrefs.units)} away.
