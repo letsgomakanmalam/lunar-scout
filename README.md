@@ -109,6 +109,8 @@ See `.kiro/steering/structure.md`. Specs are in `.kiro/specs/lunar-analog-game/`
 See `DATA_USED.md`. Low polar Sun is computed; live probes measure their values directly; the other listed-site values are team estimates read from the cited datasets until `npm run measure` replaces them, and the app labels every estimate.
 
 ## Credits
+**Team Dua Orang**: Ng Soon Teck (Leader), Tng Kah Hong (Member).
+
 Data: NASA (POWER, MODIS via the ORNL DAAC, NASADEM, SEDAC, NSIDC, LRO LOLA/Diviner/LROC, Moon Trek and Mars Trek, MGS MOLA, MRO HiRISE and CRISM, Mars Odyssey THEMIS, SWIM, Curiosity, Perseverance, GIBS), ESA (Copernicus DEM, Mars Express, ExoMars), JAXA (Kaguya), ISRO (Chandrayaan-2, HOPE), CNSA (Tianwen-1, Chang'e 4), Canadian Space Agency, USGS, Macrostrat, GLiM, Earth Impact Database. Imagery: NASA GIBS, EOX Sentinel-2 cloudless, OpenFreeMap.
 
 ## The living base (new)

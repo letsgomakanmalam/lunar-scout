@@ -5,7 +5,7 @@ import { FACTOR_HINTS, FACTOR_KEYS, FACTOR_LABELS, type Agency } from '../data/t
 import { CLIMATE_ZONES } from '../data/climateZones'
 import { useGame } from '../store'
 import Icon, { type IconName } from '../components/Icon'
-import { APP_NAME } from '../brand'
+import { APP_NAME, TEAM } from '../brand'
 
 const LOOP: { icon: IconName; title: string; text: string }[] = [
   { icon: 'rocket', title: 'Take a mission', text: "Each mission names a real base or landing site on the Moon or Mars, and what matters there." },
@@ -47,6 +47,13 @@ export default function About() {
           rehearse for the Moon Base at the lunar south pole and for the first bases on Mars.
         </p>
       </header>
+
+      <section className="credits cut" aria-label="Credits">
+        <p className="credits-team"><Icon name="crew" size={20} /><span>Made by</span><strong>{TEAM.name}</strong></p>
+        <ul>
+          {TEAM.members.map(m => <li key={m.name}><strong>{m.name}</strong><span>{m.role}</span></li>)}
+        </ul>
+      </section>
 
       <h2>How it answers the challenge</h2>
       <ul className="answers">

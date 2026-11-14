@@ -3,7 +3,7 @@ import { totalStars, useGame } from '../store'
 import { rankFor } from '../lib/base'
 import MoonGlobe from '../components/MoonGlobe'
 import EarthGlobe from '../components/EarthGlobe'
-import { APP_NAME } from '../brand'
+import { APP_NAME, TEAM } from '../brand'
 import Starfield from '../components/Starfield'
 import Icon from '../components/Icon'
 import type { Vec3 } from '../lib/globe'
@@ -259,7 +259,7 @@ export default function Title() {
       />
 
       <footer className="title-foot">
-        <span>NASA Space Apps Challenge 2026, Kuala Lumpur</span>
+        <span>{TEAM.name} · NASA Space Apps Challenge 2026, Kuala Lumpur</span>
         <span className="title-keys" aria-hidden="true"><kbd>↑</kbd><kbd>↓</kbd> choose <kbd>Enter</kbd> select <kbd>N</kbd> music <kbd>M</kbd> sound</span>
         <span>v{__APP_VERSION__}</span>
       </footer>

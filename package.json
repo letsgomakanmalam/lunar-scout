@@ -4,6 +4,8 @@
   "version": "0.7.0",
   "type": "module",
   "description": "Analog Scout: find and characterize Earth analogs for NASA's Moon Base at the lunar south pole and for Mars, with live NASA and ESA data. NASA Space Apps 2026, Kuala Lumpur.",
+  "author": "Team Dua Orang",
+  "contributors": ["Ng Soon Teck (Leader)", "Tng Kah Hong (Member)"],
   "engines": {
     "node": ">=20"
   },
