@@ -8,7 +8,7 @@
  *
  * Replaced: temperature swing, dryness, extreme cold (NASA POWER), slope & roughness
  * (Copernicus DEM) and bare ground (MODIS NDVI). Kept as reviewed estimates: rock type, ground
- * ice, craters, caves and remoteness, because one map point can miss what a site is known for
+ * ice, craters, caves, remoteness, wind and limits of life, because one map point can miss what a site is known for
  * (use the in-app "Check against live data" to compare those). Run `npm test` afterwards: the
  * data tests check that every mission can still be passed.
  */

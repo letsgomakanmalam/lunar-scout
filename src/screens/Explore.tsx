@@ -10,7 +10,7 @@ import { AsiGauge, Scanner } from '../components/ScanFx'
 import { EARTH_SITES } from '../data/earthSites'
 import { MISSIONS, missionById } from '../data/missions'
 import { targetById, targetsOf } from '../data/targets'
-import { FACTOR_KEYS, FACTOR_LABELS, WORLD_LABEL, type FactorKey, type FactorValue } from '../data/types'
+import { FACTOR_KEYS, FACTOR_LABELS, PROCESS_LABELS, WORLD_LABEL, type FactorKey, type FactorValue } from '../data/types'
 import { sourceById } from '../data/sources'
 import { computeASI, strengthsAndWeaknesses } from '../lib/scoring'
 import { fmtCoords } from '../lib/format'
@@ -262,6 +262,7 @@ export default function Explore() {
             </div>
             <p>{site.description}</p>
             {site.analogUse && <p className="meta"><Icon name="flag" size={14} /> Used for: {site.analogUse}</p>}
+            {!!site.processes?.length && <ul className="proc-chips" aria-label="Processes at work here">{site.processes.map(p => <li key={p}>{PROCESS_LABELS[p]}</li>)}</ul>}
             {site.status === 'discovery' && best && nearestListed && (
               <p className="tip"><Icon name="info" size={18} /><span>
                 Best match: {best.target.name} ({WORLD_LABEL[best.target.world]}), {best.asi}. Nearest listed analog: {nearestListed.item.name}, {formatDistance(nearestListed.km, g.mapPrefs.units)} away.

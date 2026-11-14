@@ -1296,3 +1296,8 @@ label { display: grid; gap: .35rem; font: 600 .8rem var(--head); letter-spacing:
 .credits ul { display: flex; flex-wrap: wrap; gap: .4rem 1.4rem; margin: 0; padding: 0; list-style: none; }
 .credits li strong { margin-right: .45rem; color: var(--regolith); font-weight: 600; }
 .credits li span { color: var(--foil-hi); font: 600 .72rem var(--head); letter-spacing: .12em; text-transform: uppercase; }
+
+/* Processes at work: chips on the target card and site panel, one line under each twin */
+.proc-chips { display: flex; flex-wrap: wrap; gap: .3rem; margin: .4rem 0 .8rem; padding: 0; list-style: none; }
+.proc-chips li { padding: .15rem .5rem; border: 1px solid rgba(114, 182, 255, .45); background: rgba(114, 182, 255, .08); color: #cfe3ff; font: 600 .72rem var(--head); letter-spacing: .05em; text-transform: uppercase; }
+.tr-name small.tr-proc { color: #9fc4f2; }

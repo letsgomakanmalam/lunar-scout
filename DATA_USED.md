@@ -9,7 +9,7 @@ Every source below is also listed, with links, on the About screen and in each d
 - MGS MOLA (Mars topography), MRO HiRISE and CRISM (images, minerals), Mars Odyssey THEMIS (Arsia Mons cave skylights)
 - SWIM, Mars Subsurface Water Ice Mapping (Morgan et al., 2021): buried-ice regions for human landing sites
 - Curiosity (including RAD radiation dose) and Perseverance rover missions
-- NASA POWER climatology: temperature, daily temperature range, precipitation (**live in the probe**)
+- NASA POWER climatology: temperature, daily temperature range, precipitation, wind speed at 2 m (**live in the probe**)
 - MODIS NDVI MOD13Q1 through the ORNL DAAC web service (**live in the probe**); MODIS Land Surface Temperature
 - NASADEM elevation; SEDAC Gridded Population of the World; NSIDC Circum-Arctic Map of Permafrost
 - NASA GIBS imagery (Blue Marble, VIIRS daily)
@@ -42,7 +42,7 @@ Every source below is also listed, with links, on the About screen and in each d
 ## Live probe services
 | Service | What it gives the probe | Notes |
 |---|---|---|
-| NASA POWER climatology API | Temperature swing, extreme cold, dryness, ground-ice proxy | Keyless, allows browser requests |
+| NASA POWER climatology API | Temperature swing, extreme cold, dryness, ground-ice proxy, wind & blowing dust, limits of life (months with liquid water) | Keyless, allows browser requests |
 | Open-Meteo Elevation API (Copernicus DEM GLO-90, ESA) | Slope and roughness from a 5 x 5 grid over 4 km | Keyless |
 | ORNL DAAC MODIS web service (MOD13Q1) | Bare ground from peak-season NDVI | Keyless |
 | Macrostrat API | Volcanic rock, anorthosite, water-laid rock and salts | Keyless, CC-BY 4.0 data |

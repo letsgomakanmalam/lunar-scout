@@ -17,7 +17,8 @@ const LOOP: { icon: IconName; title: string; text: string }[] = [
 const ANSWERS: { icon: IconName; ask: string; answer: string }[] = [
   { icon: 'target', ask: 'Permanent Moon base locations and Mars', answer: `${TARGETS.length} real targets: NASA's Moon Base on the Shackleton Connecting Ridge, Artemis III candidate regions at Malapert Massif and Mons Mouton, and a lava-tube pit on the Moon; SWIM ice regions and NASA, ESA and CNSA rover sites on Mars.` },
   { icon: 'search', ask: 'Identify new terrestrial analogs', answer: "The Global search screens all 91,636 land cells on Earth (0.5°) against every Moon and Mars site, ranks the best places that are not yet known analogs, and checks itself against the analogs agencies already use. One tap then probes a candidate live. FINDINGS.md lists what it found." },
-  { icon: 'layers', ask: 'Characterize them', answer: 'Every site has 13 factors with the measurement, source and an estimate flag. The Analog Passport exports it all as Markdown and JSON.' },
+  { icon: 'layers', ask: 'Characterize them', answer: 'Every site has 15 factors with the measurement, source and an estimate flag, plus the processes that shaped it. The Analog Passport exports it all as Markdown and JSON.' },
+  { icon: 'signal', ask: 'More than looks: dust, habitability and processes', answer: 'Wind and blowing dust and the limits of life are scored for every site. The Twin finder shows which processes (impacts, volcanism, wind, water, ice, salts, acid) act at both the Earth site and the Moon or Mars site, and says when a match is in conditions only.' },
   { icon: 'globe', ask: 'Deserts, polar regions, volcanic and arid terrain, caves and more', answer: `${EARTH_SITES.length} listed sites across desert, polar, volcanic, cave, impact, highland, water-laid and acidic environments.` },
   { icon: 'signal', ask: 'Open data from NASA and other space agencies', answer: 'NASA POWER, MODIS, LRO, SWIM, THEMIS, Curiosity and Perseverance; ESA Copernicus DEM, Mars Express and ExoMars; JAXA Kaguya; ISRO Chandrayaan-2 and HOPE; CNSA Tianwen-1 and Chang\'e 4; CSA analogue missions.' },
   { icon: 'chart', ask: 'Present it as a map, visualization or tool', answer: 'A live Earth map, Moon and Mars globes, radar charts, a south-pole light calendar, the Twin finder and downloadable reports.' },
@@ -87,7 +88,7 @@ export default function About() {
 
       <h2>How scoring works</h2>
       <p>
-        Each site gets an Analog Similarity Index (ASI) from 0 to 100. Sites are described by 13 factors, each scaled from 0 to 1,
+        Each site gets an Analog Similarity Index (ASI) from 0 to 100. Sites are described by 15 factors, each scaled from 0 to 1,
         where 1 means "as Moon- or Mars-like as anywhere on Earth gets". The Moon and Mars are more extreme than Earth on almost
         everything, so a target's value is set to the most extreme Earth level.
       </p>
@@ -108,7 +109,7 @@ export default function About() {
         POWER); mean annual temperature 10 °C = 0 to −20 °C = 1 for cold; rain as e<sup>−mm/450</sup> for dryness; ground ice
         from mean annual temperature (permafrost below about −2 °C); local relief over 4 km, 500 m = 1 (Copernicus DEM); peak-season
         NDVI 0.45 = 0 to 0.10 = 1 for bare ground (MODIS); rock type from the geologic map unit (Macrostrat); impact craters from
-        distance to confirmed structures, weighted by age (Earth Impact Database). Low polar Sun is computed from latitude: days a
+        distance to confirmed structures, weighted by age (Earth Impact Database); wind and blowing dust from mean wind speed 2 m above the ground, 1 m/s = 0 to 6 m/s = 1, multiplied by how dry and bare the ground is (NASA POWER); limits of life as 1 minus the share of months with liquid water, meaning above 0 °C with at least 10 mm of rain (NASA POWER). Low polar Sun is computed from latitude: days a
         year when the Sun rises but stays below 7°.
       </p>
       <h3 className="sub-h">Global search</h3>
@@ -116,7 +117,7 @@ export default function About() {
         A grid of 0.5° cells (about 55 km) covers all land. Each cell gets a Köppen-Geiger climate zone (Rubel et al., 1986–2010,
         100 arc-second map), the distance to the nearest town of 1,000+ people (GeoNames), impact structures (Earth Impact Database),
         young volcanoes (Smithsonian Global Volcanism Program) and salt flats and glaciers (Natural Earth). Climate zones become
-        screening proxies for dryness, cold, temperature swing, ground ice and bare ground (table below); ice sheets count as
+        screening proxies for dryness, cold, temperature swing, ground ice, bare ground and limits of life (table below); wind is not screened globally and needs a live probe; ice sheets count as
         ice-covered, not bare, because the Moon and Mars have exposed rock. Each cell's score is the ASI over the factors it has.
         Candidates are the best cells at least 300 km from every listed analog and 450 km from each other. As a check, the app shows
         where the known analogs for each site fall among all land cells: for most sites they rank in the top 10%.
@@ -125,8 +126,8 @@ export default function About() {
         <summary>Climate zone proxies</summary>
         <div className="table-scroll">
           <table className="zone-table">
-            <thead><tr><th>Zone</th><th>Climate</th><th>Dryness</th><th>Cold</th><th>Swing</th><th>Ice</th><th>Bare</th></tr></thead>
-            <tbody>{CLIMATE_ZONES.slice(1).map(z => <tr key={z.code}><th scope="row">{z.code}</th><td>{z.label}</td><td>{z.aridity}</td><td>{z.cold}</td><td>{z.thermal}</td><td>{z.ice}</td><td>{z.barren}</td></tr>)}</tbody>
+            <thead><tr><th>Zone</th><th>Climate</th><th>Dryness</th><th>Cold</th><th>Swing</th><th>Ice</th><th>Bare</th><th>Life limits</th></tr></thead>
+            <tbody>{CLIMATE_ZONES.slice(1).map(z => <tr key={z.code}><th scope="row">{z.code}</th><td>{z.label}</td><td>{z.aridity}</td><td>{z.cold}</td><td>{z.thermal}</td><td>{z.ice}</td><td>{z.barren}</td><td>{z.life}</td></tr>)}</tbody>
           </table>
         </div>
       </details>
@@ -141,7 +142,7 @@ export default function About() {
         {share > 0
           ? `${share}% of the listed site values are measured or computed${MEASURED.generated ? ` (measured on ${MEASURED.generated.slice(0, 10)})` : ''}; the rest are team estimates read from the cited datasets, and are labelled as estimates wherever they appear.`
           : 'Most listed site values are team estimates read from the cited datasets, and are labelled as estimates wherever they appear. Low polar Sun is computed. Live probes and the live data check measure values directly.'}
-        {' '}Caves are not measured live; remoteness comes from the global grid. Global search values are coarse screening proxies for a whole cell, so every candidate needs a live probe and, ideally, a field visit. No place on Earth copies low gravity, vacuum or space radiation: the Twin
+        {' '}Caves are not measured live; remoteness comes from the global grid. Wind and limits of life for the listed sites, and every process label, are team readings of published descriptions. The limits-of-life measure only counts liquid water, so a live probe cannot see acid or salt. Mars sites are set to the Earth extreme for wind and dust because of their dust storms, although the thin Martian air pushes far more weakly than wind on Earth. The Moon has no wind and no life to look for, so those two factors are left out for Moon sites. Global search values are coarse screening proxies for a whole cell, so every candidate needs a live probe and, ideally, a field visit. No place on Earth copies low gravity, vacuum or space radiation: the Twin
         finder lists these gaps and how teams test them instead. This is an educational screening tool, not a mission-planning product.
       </p>
 

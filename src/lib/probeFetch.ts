@@ -16,7 +16,9 @@ export const STEPS: { id: StepId; label: string; source: string }[] = [
   { id: 'place', label: 'Place name', source: 'OpenStreetMap' },
 ]
 
-const POWER_PARAMS = ['T2M', 'T2M_MIN', 'T2M_RANGE', 'PRECTOTCORR']
+const POWER_CORE = ['T2M', 'T2M_MIN', 'T2M_RANGE', 'PRECTOTCORR']
+/** Wind speed at 2 m is asked for together with the rest; if the service refuses it, the probe carries on without wind */
+const POWER_PARAMS = [...POWER_CORE, 'WS2M']
 
 export const powerUrl = (lat: number, lon: number, params = POWER_PARAMS) =>
   `https://power.larc.nasa.gov/api/temporal/climatology/point?parameters=${params.join(',')}&community=AG&longitude=${lon.toFixed(3)}&latitude=${lat.toFixed(3)}&format=JSON`
@@ -88,8 +90,12 @@ export async function runProbe(lat: number, lon: number, opts: ProbeOptions = {}
     try {
       return parsePower(await getJson(powerUrl(lat, lon), ms, f))
     } catch {
-      // If a parameter is ever retired, try again with the essentials only
-      return parsePower(await getJson(powerUrl(lat, lon, ['T2M', 'T2M_MIN', 'PRECTOTCORR']), ms, f))
+      try {
+        return parsePower(await getJson(powerUrl(lat, lon, POWER_CORE), ms, f)) // without wind
+      } catch {
+        // If a parameter is ever retired, try again with the essentials only
+        return parsePower(await getJson(powerUrl(lat, lon, ['T2M', 'T2M_MIN', 'PRECTOTCORR']), ms, f))
+      }
     }
   })
   const elevations = step<number[]>('terrain', async () => parseElevations(await getJson(elevationUrl(reliefGrid(lat, lon)), ms, f)))

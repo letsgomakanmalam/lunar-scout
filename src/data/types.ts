@@ -1,8 +1,8 @@
 export type FactorKey =
   | 'thermal' | 'aridity' | 'roughness' | 'basalt' | 'anorthosite'
-  | 'crater' | 'caves' | 'cold' | 'isolation' | 'ice' | 'sediment' | 'lowsun' | 'barren'
+  | 'crater' | 'caves' | 'cold' | 'isolation' | 'ice' | 'sediment' | 'lowsun' | 'barren' | 'wind' | 'life'
 
-export const FACTOR_KEYS: FactorKey[] = ['thermal', 'aridity', 'roughness', 'basalt', 'anorthosite', 'crater', 'caves', 'cold', 'isolation', 'ice', 'sediment', 'lowsun', 'barren']
+export const FACTOR_KEYS: FactorKey[] = ['thermal', 'aridity', 'roughness', 'basalt', 'anorthosite', 'crater', 'caves', 'cold', 'isolation', 'ice', 'sediment', 'lowsun', 'barren', 'wind', 'life']
 
 export const FACTOR_LABELS: Record<FactorKey, string> = {
   thermal: 'Temperature swing',
@@ -18,6 +18,8 @@ export const FACTOR_LABELS: Record<FactorKey, string> = {
   sediment: 'Water-laid rock & salts',
   lowsun: 'Low polar Sun',
   barren: 'Bare ground (no plants)',
+  wind: 'Wind & blowing dust',
+  life: 'Limits of life (habitability)',
 }
 
 /** One line on what each factor measures and why it matters off Earth. */
@@ -35,6 +37,21 @@ export const FACTOR_HINTS: Record<FactorKey, string> = {
   sediment: 'Rock laid down by water, clays and salts: where Mars rovers look for signs of past life.',
   lowsun: 'How often the Sun stays just above the horizon all day, as it does at the lunar south pole.',
   barren: 'How bare the ground is. No plants, like on the Moon and Mars.',
+  wind: 'How hard the wind blows over dry, bare ground, lifting dust and carving rock. Mars has dust devils and dust storms; dust clogs seals and covers solar panels.',
+  life: 'How close the place is to the limits of life: almost no liquid water, or water that is very salty or acidic. Where teams test tools that look for life on Mars.',
+}
+
+/** What shapes a landscape. An analog is strongest when the same process is at work on both worlds. */
+export type ProcessKey = 'impact' | 'volcanism' | 'wind' | 'water' | 'ice' | 'salt' | 'acid'
+export const PROCESS_KEYS: ProcessKey[] = ['impact', 'volcanism', 'wind', 'water', 'ice', 'salt', 'acid']
+export const PROCESS_LABELS: Record<ProcessKey, string> = {
+  impact: 'Impact cratering',
+  volcanism: 'Volcanism and lava flows',
+  wind: 'Wind erosion and dust',
+  water: 'Sediment laid down by water',
+  ice: 'Ice and frozen ground',
+  salt: 'Evaporation and salt crusts',
+  acid: 'Acid and hot-water alteration',
 }
 
 /** value is normalized 0..1, where 1 = as Moon- or Mars-like as anywhere on Earth gets. */
@@ -71,6 +88,8 @@ export interface EarthSite {
   description: string
   /** Who has used it for space analog work, if anyone */
   analogUse?: string
+  /** Processes that shape (or shaped) the place; a team reading of published descriptions */
+  processes?: ProcessKey[]
   factors: Record<FactorKey, FactorValue>
   /** For player discoveries: when and where it was probed */
   probedAt?: string
@@ -102,6 +121,8 @@ export interface PlanetTarget {
   /** Who is going there, e.g. "NASA Moon Base" */
   program?: string
   facts: string[]
+  /** Processes that shape (or shaped) the place */
+  processes?: ProcessKey[]
   sourceIds: string[]
   landable: boolean
   landing?: Landing

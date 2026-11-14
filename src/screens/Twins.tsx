@@ -1,10 +1,10 @@
 import { useMemo } from 'react'
 import { allSites, useGame } from '../store'
 import { TARGETS, targetById, targetsOf } from '../data/targets'
-import { FACTOR_HINTS, FACTOR_LABELS, WORLD_LABEL, type FactorKey, type World } from '../data/types'
+import { FACTOR_HINTS, FACTOR_LABELS, PROCESS_LABELS, WORLD_LABEL, type FactorKey, type World } from '../data/types'
 import { sourceById } from '../data/sources'
 import { GAPS } from '../data/gaps'
-import { planCampaign, rankTwins } from '../lib/twins'
+import { planCampaign, rankTwins, sharedProcesses } from '../lib/twins'
 import { download, slug, twinReportMarkdown } from '../lib/passport'
 import { lunarMaxSun } from '../lib/sun'
 import { distanceKm, formatDistance } from '../lib/geo'
@@ -72,6 +72,12 @@ export default function Twins() {
           <p className="coords">{t.approx ? '≈ ' : ''}{fmtCoords(t.lat, t.lon)}{t.program ? ` · ${t.program}` : ''}</p>
           <p>{t.description}</p>
           <ul className="facts">{t.facts.map(f => <li key={f}>{f}</li>)}</ul>
+          {!!t.processes?.length && (
+            <>
+              <h3>Processes at work here</h3>
+              <ul className="proc-chips">{t.processes.map(p => <li key={p}>{PROCESS_LABELS[p]}</li>)}</ul>
+            </>
+          )}
           <h3>What matters for a crew here</h3>
           <ul className="weights">
             {profile.map(([k, w]) => (
@@ -96,6 +102,7 @@ export default function Twins() {
                 <span className="tr-name">
                   <button className="pc-link" onClick={() => openSite(r.site.id)}>{r.site.name}</button>
                   <small>{r.site.country} · <span className={`st-text st-${r.site.status}`}>{STATUS[r.site.status]}</span>{g.myLocation ? ` · ${formatDistance(distanceKm(g.myLocation, r.site), g.mapPrefs.units)} away` : ''}</small>
+                  {r.site.processes && <small className="tr-proc">{sharedProcesses(r.site, t).length ? `Same processes: ${sharedProcesses(r.site, t).map(p => PROCESS_LABELS[p].toLowerCase()).join(', ')}` : 'No shared process: alike in conditions only'}</small>}
                 </span>
                 <span className="tr-score">
                   <span className="bar"><span style={{ width: `${r.result.asi}%` }} /></span>

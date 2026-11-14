@@ -10,7 +10,7 @@ Built for the NASA Space Apps Challenge 2026 challenge **"Identify Earth Locatio
 
 ## What it does
 - **Real targets on two worlds.** The Moon: NASA's Moon Base site on the Shackleton Connecting Ridge, the Artemis III candidate regions at Malapert Massif and Mons Mouton, and the Marius Hills lava-tube pit. Mars: the SWIM buried-ice regions (Arcadia Planitia, Deuteronilus Mensae) and rover sites from NASA (Jezero, Gale), ESA (Oxia Planum) and CNSA (Utopia Planitia), plus the Arsia Mons cave skylights.
-- **30 Earth sites, 13 factors each**: deserts, polar regions, volcanic fields, caves, impact craters, acidic waters, salt basins and highlands. Known analogs, under-used candidates (including two in Indonesia near Kuala Lumpur) and Malaysian comparison sites. New factors: ground ice, highland rock (anorthosite, the rock of the lunar south pole), bare ground, water-laid rock and salts, and low polar Sun.
+- **30 Earth sites, 15 factors each**: deserts, polar regions, volcanic fields, caves, impact craters, acidic waters, salt basins and highlands. Known analogs, under-used candidates (including two in Indonesia near Kuala Lumpur) and Malaysian comparison sites. New factors: ground ice, highland rock (anorthosite, the rock of the lunar south pole), bare ground, water-laid rock and salts, and low polar Sun.
 - **Probe any point on Earth** (crosshair button on the map, or "Probe here" on a search result). The app reads NASA POWER climate, ESA Copernicus DEM terrain, NASA MODIS vegetation, the Macrostrat geologic map and the Earth Impact Database for that spot, scores it against every Moon and Mars target, and flags a **new analog candidate** when it scores 75+ more than 200 km from any listed analog.
 - **Global search for new analogs** (Twin finder): every land cell on Earth (91,636 cells of 0.5°) is scored against the chosen Moon or Mars site and shown as a world heatmap. The best places that are not yet known analogs are ranked, each with a one-tap live probe, and a validation check shows where the analogs agencies already use fall (for most sites, in the top 10% of Earth's land). See **FINDINGS.md** for the results: for NASA's Moon Base ridge, the top five new candidates all contain impact structures in polar tundra (El'gygytgyn, Pingualuit, Popigai, Tunnunik and the buried Hiawatha structure).
 - **Twin finder**: pick any Moon or Mars site to see its best Earth twins, the best three-site field campaign (greedy maximum coverage), and what no place on Earth can copy (gravity, air, radiation, temperature, day length, dust) with how teams test those instead.
@@ -112,6 +112,16 @@ See `DATA_USED.md`. Low polar Sun is computed; live probes measure their values 
 **Team Dua Orang**: Ng Soon Teck (Leader), Tng Kah Hong (Member).
 
 Data: NASA (POWER, MODIS via the ORNL DAAC, NASADEM, SEDAC, NSIDC, LRO LOLA/Diviner/LROC, Moon Trek and Mars Trek, MGS MOLA, MRO HiRISE and CRISM, Mars Odyssey THEMIS, SWIM, Curiosity, Perseverance, GIBS), ESA (Copernicus DEM, Mars Express, ExoMars), JAXA (Kaguya), ISRO (Chandrayaan-2, HOPE), CNSA (Tianwen-1, Chang'e 4), Canadian Space Agency, USGS, Macrostrat, GLiM, Earth Impact Database. Imagery: NASA GIBS, EOX Sentinel-2 cloudless, OpenFreeMap.
+
+## Dust, habitability and processes (new)
+
+The challenge asks for more than places that look alike. Three additions answer that:
+
+- **Wind & blowing dust** (new factor). Live probe: NASA POWER mean wind speed 2 m above the ground (1 m/s = 0, 6 m/s = 1), multiplied by how dry and bare the ground is, because wind only lifts dust from dry, bare ground. Used for Mars sites; the Moon has no wind.
+- **Limits of life (habitability)** (new factor). Live probe: 1 minus the share of months with liquid water (above 0 °C with at least 10 mm of rain), from NASA POWER. In the global search it is a climate-zone proxy. Used for Mars sites, most of all the rover sites that look for signs of life.
+- **Processes** (new labels). Every Earth site and every Moon and Mars site lists what shapes it: impact cratering, volcanism, wind erosion and dust, sediment laid down by water, ice and frozen ground, evaporation and salt crusts, acid and hot-water alteration. The Twin finder and both reports show which processes a twin shares with the target, and say so when a match is in conditions only.
+
+Honest limits: for the 30 listed sites the two new factors and all process labels are team readings of published descriptions, labelled as estimates. The live limits-of-life measure only counts liquid water, so it cannot see acid or salt. Wind is not in the global search grid. The wind request to NASA POWER could not be tested from the build machine; if the service refuses it, the probe carries on and shows wind as "no data".
 
 ## The living base (new)
 

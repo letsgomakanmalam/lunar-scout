@@ -4,8 +4,8 @@
  *
  * Built by scripts/build-earth-grid.py from open data: Köppen-Geiger climate zones (Rubel et al.),
  * GeoNames towns, the Earth Impact Database, the Smithsonian volcano list and Natural Earth salt
- * flats, glaciers, regions and countries. Ten of the 13 factors can be screened this way; slope,
- * anorthosite and caves need the live probe or a field survey, so the screening confidence says
+ * flats, glaciers, regions and countries. Eleven of the 15 factors can be screened this way; slope,
+ * anorthosite, caves and wind need the live probe or a field survey, so the screening confidence says
  * how much of a target's profile was covered. Two stages, as in real site selection:
  * screen the planet coarsely, then characterize the best cells precisely with the live probe.
  */
@@ -30,7 +30,7 @@ export interface GridMeta {
 }
 
 /** Factors the global grid can screen. The rest stay "no data" until a live probe. */
-export const SCREENED: FactorKey[] = ['thermal', 'aridity', 'cold', 'ice', 'barren', 'isolation', 'crater', 'basalt', 'sediment', 'lowsun']
+export const SCREENED: FactorKey[] = ['thermal', 'aridity', 'cold', 'ice', 'barren', 'isolation', 'crater', 'basalt', 'sediment', 'lowsun', 'life']
 
 export interface EarthGrid {
   meta: GridMeta
@@ -91,6 +91,7 @@ export function decodeEarthGrid(meta: GridMeta, bytes: Uint8Array): EarthGrid {
     values.basalt[k] = (bytes[o + 2] & 15) / 15
     values.sediment[k] = fl & PLAYA ? 1 : fl & NEAR_PLAYA ? 0.6 : 0
     values.lowsun[k] = rowSun[Math.floor(rasterOf[k] / w)]
+    values.life[k] = zone.life
   }
   return { meta, cellOf, rasterOf, climate, flags, townKm, country, region, values }
 }
@@ -123,10 +124,10 @@ export function placeOf(g: EarthGrid, cell: number) {
 
 const SRC: Partial<Record<FactorKey, string>> = {
   thermal: 'koppen', aridity: 'koppen', cold: 'koppen', ice: 'koppen', barren: 'koppen',
-  isolation: 'geonames', crater: 'eid', basalt: 'gvp', sediment: 'natural-earth', lowsun: 'solar-geometry',
+  isolation: 'geonames', crater: 'eid', basalt: 'gvp', sediment: 'natural-earth', lowsun: 'solar-geometry', life: 'koppen',
 }
 
-/** All 13 factors for one cell: screened values with their meaning, the rest marked for the live probe. */
+/** All 15 factors for one cell: screened values with their meaning, the rest marked for the live probe. */
 export function cellFactors(g: EarthGrid, cell: number): Record<FactorKey, FactorValue> {
   const zone = CLIMATE_ZONES[g.climate[cell]] ?? CLIMATE_ZONES[0]
   const fl = g.flags[cell]
@@ -142,12 +143,13 @@ export function cellFactors(g: EarthGrid, cell: number): Record<FactorKey, Facto
     basalt: g.values.basalt[cell] > 0 ? 'Young volcanoes nearby (mostly basaltic types score higher)' : 'No Holocene volcano within 100 km',
     sediment: fl & PLAYA ? 'Salt flat in this cell' : fl & NEAR_PLAYA ? 'Salt flat next to this cell' : 'No mapped salt flat',
     lowsun: lowSunRaw(lat),
+    life: `Climate zone ${zone.code}, ${zone.label}: liquid water for about ${Math.round((1 - zone.life) * 12)} months a year`,
   }
   const out = {} as Record<FactorKey, FactorValue>
   for (const k of FACTOR_KEYS) {
     out[k] = SCREENED.includes(k)
-      ? { value: Number(g.values[k][cell].toFixed(3)), raw: raw[k]!, sourceId: SRC[k]!, estimate: k === 'thermal' || k === 'aridity' || k === 'cold' || k === 'ice' || k === 'barren' }
-      : { value: null, raw: 'Not screened globally: probe this spot live', sourceId: k === 'caves' ? 'usgs-caves' : k === 'roughness' ? 'cop-dem' : 'macrostrat', estimate: false }
+      ? { value: Number(g.values[k][cell].toFixed(3)), raw: raw[k]!, sourceId: SRC[k]!, estimate: k === 'thermal' || k === 'aridity' || k === 'cold' || k === 'ice' || k === 'barren' || k === 'life' }
+      : { value: null, raw: 'Not screened globally: probe this spot live', sourceId: k === 'caves' ? 'usgs-caves' : k === 'roughness' ? 'cop-dem' : k === 'wind' ? 'power' : 'macrostrat', estimate: false }
   }
   return out
 }

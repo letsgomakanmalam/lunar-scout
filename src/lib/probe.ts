@@ -3,7 +3,8 @@
  * Every function here is pure (no network), so it is unit-tested and shared by the app's live
  * probe and by scripts/measure-sites.ts. Fetching lives in probeFetch.ts.
  *
- *   NASA POWER climatology  -> temperature swing, extreme cold, dryness, ground ice
+ *   NASA POWER climatology  -> temperature swing, extreme cold, dryness, ground ice,
+ *                              wind & blowing dust, limits of life (months with liquid water)
  *   Copernicus DEM (ESA)    -> slope & roughness (local relief over a 4 x 4 km box)
  *   MODIS NDVI (NASA)       -> bare ground
  *   Macrostrat geologic map -> basalt, anorthosite, water-laid rock & salts
@@ -35,7 +36,15 @@ export interface Climate {
   rainMm: number | null
   /** Grid-cell elevation POWER reports, m */
   elevation: number | null
+  /** Mean wind speed 2 m above the ground, m/s */
+  windMs?: number | null
+  /** Months a year with liquid water: mean temperature above 0 °C and at least 10 mm of rain */
+  wetMonths?: number | null
 }
+
+/** A month counts as having liquid water when it is above freezing and gets at least this much rain */
+export const WET_MONTH_MM = 10
+const MONTH_DAYS = [31, 28.25, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
 
@@ -58,12 +67,22 @@ export function parsePower(json: unknown): Climate | null {
     if (/day/i.test(units)) rainMm *= 365.25 // POWER climatology gives mean mm per day
   }
   const elev = j.geometry?.coordinates?.[2]
+  // Liquid water needs both warmth and rain: count the months that have both
+  const perDay = /day/i.test(j.parameters?.PRECTOTCORR?.units ?? 'mm/day')
+  let wetMonths: number | null = 0
+  MONTHS.forEach((m, i) => {
+    const t = p.T2M?.[m], r = p.PRECTOTCORR?.[m]
+    if (!ok(t) || !ok(r)) { wetMonths = null; return }
+    if (wetMonths != null && t > 0 && r * (perDay ? MONTH_DAYS[i] : 1) >= WET_MONTH_MM) wetMonths++
+  })
   return {
     meanC: ann('T2M'),
     rangeC: ann('T2M_RANGE'),
     minC: lowest('T2M_MIN'),
     rainMm,
     elevation: ok(elev) ? elev : null,
+    windMs: ann('WS2M'),
+    wetMonths,
   }
 }
 
@@ -77,7 +96,19 @@ export function climateFactors(c: Climate): Partial<Record<FactorKey, FactorValu
     out.ice = measured((1 - c.meanC) / 12, `Mean annual ${fmt(c.meanC)} °C: ${permafrost}`, 'power')
   }
   if (c.rainMm != null) out.aridity = measured(Math.exp(-c.rainMm / 450), `${fmt(c.rainMm, 0)} mm of rain a year`, 'power')
+  if (c.wetMonths != null) out.life = measured(1 - c.wetMonths / 12, `Liquid water ${c.wetMonths} months a year (above 0 °C with ${WET_MONTH_MM} mm of rain or more)`, 'power')
   return out
+}
+
+/**
+ * Wind & blowing dust: wind only lifts dust from dry, bare ground, so the wind score (1 m/s = 0, 6 m/s = 1
+ * at 2 m height) is multiplied by how dry and bare the place is (the mean of those two factors).
+ */
+export function windFactor(windMs: number, dry: number | null, bare: number | null): FactorValue | null {
+  const ground = [dry, bare].filter((v): v is number => v != null)
+  if (!ground.length) return null
+  const open = ground.reduce((a, b) => a + b, 0) / ground.length
+  return measured(((windMs - 1) / 5) * open, `Mean wind ${fmt(windMs)} m/s over ground ${Math.round(open * 100)}% dry and bare (6 m/s on bare desert = 1)`, 'power')
 }
 
 /* ---------- Copernicus DEM via Open-Meteo ---------- */
@@ -207,7 +238,7 @@ export interface ProbeData {
   townKm?: number | null
 }
 
-/** All 13 factors for a probed point. Anything not measured is "no data" and lowers confidence. */
+/** All 15 factors for a probed point. Anything not measured is "no data" and lowers confidence. */
 export function probeFactors(lat: number, lon: number, d: ProbeData): Record<FactorKey, FactorValue> {
   const got: Partial<Record<FactorKey, FactorValue>> = {
     ...(d.climate ? climateFactors(d.climate) : {}),
@@ -217,6 +248,7 @@ export function probeFactors(lat: number, lon: number, d: ProbeData): Record<Fac
   }
   if (d.elevations) { const f = reliefFactor(d.elevations); if (f) got.roughness = f }
   if (d.ndvi != null) got.barren = ndviFactor(d.ndvi)
+  if (d.climate?.windMs != null) { const f = windFactor(d.climate.windMs, got.aridity?.value ?? null, got.barren?.value ?? null); if (f) got.wind = f }
   if (d.townKm != null) {
     const v = Math.min(1, Math.max(0, Math.log(1 + d.townKm / 5) / Math.log(31)))
     got.isolation = measured(v, `About ${d.townKm >= 510 ? '510+' : Math.round(d.townKm)} km to the nearest town of 1,000+ people (150 km = 1)`, 'geonames')
@@ -224,6 +256,7 @@ export function probeFactors(lat: number, lon: number, d: ProbeData): Record<Fac
   const NONE: Partial<Record<FactorKey, [string, string]>> = {
     caves: ['Caves need a field survey', 'usgs-caves'],
     isolation: ['Remoteness grid not loaded', 'geonames'],
+    wind: ['Wind speed not available here', 'power'],
   }
   const out = {} as Record<FactorKey, FactorValue>
   for (const k of FACTOR_KEYS) {

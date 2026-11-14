@@ -2,7 +2,7 @@ import type { DataSource } from './types'
 
 export const SOURCES: DataSource[] = [
   // Earth: climate, terrain, vegetation, people (used for curated sites and live probes)
-  { id: 'power', name: 'NASA POWER climatology (temperature, temperature range, precipitation)', agency: 'NASA', url: 'https://power.larc.nasa.gov/' },
+  { id: 'power', name: 'NASA POWER climatology (temperature, temperature range, precipitation, wind speed)', agency: 'NASA', url: 'https://power.larc.nasa.gov/' },
   { id: 'modis-lst', name: 'MODIS Land Surface Temperature (MOD11A2)', agency: 'NASA', url: 'https://lpdaac.usgs.gov/products/mod11a2v061/' },
   { id: 'modis-ndvi', name: 'MODIS vegetation index (MOD13Q1 NDVI, via ORNL DAAC)', agency: 'NASA', url: 'https://lpdaac.usgs.gov/products/mod13q1v061/' },
   { id: 'nasadem', name: 'NASADEM elevation (slope, roughness)', agency: 'NASA', url: 'https://www.earthdata.nasa.gov/data/catalog/lpcloud-nasadem-hgt-001' },

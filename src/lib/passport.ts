@@ -4,11 +4,11 @@
  * Pure text builders, plus a tiny browser download helper.
  */
 import type { EarthSite, PlanetTarget } from '../data/types'
-import { FACTOR_KEYS, FACTOR_LABELS, WORLD_LABEL } from '../data/types'
+import { FACTOR_KEYS, FACTOR_LABELS, PROCESS_LABELS, WORLD_LABEL } from '../data/types'
 import { TARGETS } from '../data/targets'
 import { sourceById } from '../data/sources'
 import { GAPS } from '../data/gaps'
-import { planCampaign, rankTwins } from './twins'
+import { planCampaign, rankTwins, sharedProcesses } from './twins'
 import { lightWindows, lunarMaxSun } from './sun'
 import { fmtCoords } from './format'
 
@@ -41,6 +41,7 @@ export function passportMarkdown(site: EarthSite, appName: string, date = new Da
   lines.push(`- **Status:** ${STATUS[site.status]}`)
   lines.push(`- **Environment:** ${site.environment}`)
   if (site.analogUse) lines.push(`- **Space analog use so far:** ${site.analogUse}`)
+  if (site.processes?.length) lines.push(`- **Processes at work (team reading of published descriptions):** ${site.processes.map(p => PROCESS_LABELS[p]).join('; ')}`)
   lines.push('')
   lines.push(site.description)
   lines.push('')
@@ -58,9 +59,9 @@ export function passportMarkdown(site: EarthSite, appName: string, date = new Da
   lines.push('')
   lines.push('## Best Moon and Mars matches')
   lines.push('')
-  lines.push('| World | Base or landing site | Analog Similarity Index | Data confidence |')
-  lines.push('|---|---|---|---|')
-  for (const m of matches) lines.push(`| ${WORLD_LABEL[m.target.world]} | ${m.target.name} | ${m.asi} | ${Math.round(m.confidence * 100)}% |`)
+  lines.push('| World | Base or landing site | Analog Similarity Index | Data confidence | Shared processes |')
+  lines.push('|---|---|---|---|---|')
+  for (const m of matches) lines.push(`| ${WORLD_LABEL[m.target.world]} | ${m.target.name} | ${m.asi} | ${Math.round(m.confidence * 100)}% | ${sharedProcesses(site, m.target).map(p => PROCESS_LABELS[p]).join('; ') || (site.processes ? 'none' : 'not assessed')} |`)
   lines.push('')
   lines.push('## South-pole light calendar')
   lines.push('')
@@ -91,7 +92,7 @@ export function passportJson(site: EarthSite, appName: string, date = new Date()
   return {
     generator: appName,
     generated: date.toISOString(),
-    site: { id: site.id, name: site.name, country: site.country, lat: site.lat, lon: site.lon, status: site.status, environment: site.environment, analogUse: site.analogUse ?? null },
+    site: { id: site.id, name: site.name, country: site.country, lat: site.lat, lon: site.lon, status: site.status, environment: site.environment, analogUse: site.analogUse ?? null, processes: site.processes ?? null },
     factors: Object.fromEntries(FACTOR_KEYS.map(k => [k, { ...site.factors[k], label: FACTOR_LABELS[k] }])),
     matches: matchesFor(site).map(m => ({ world: m.target.world, target: m.target.id, name: m.target.name, asi: m.asi, confidence: Number(m.confidence.toFixed(3)) })),
     lightWindows: lightWindows(site.lat).map(w => w.label),
@@ -129,9 +130,10 @@ export function twinReportMarkdown(t: PlanetTarget, sites: EarthSite[], appName:
   L.push('')
   L.push('## Best single Earth twins')
   L.push('')
-  L.push('| Rank | Site | Country | Status | Analog Similarity Index | Data confidence |')
-  L.push('|---|---|---|---|---|---|')
-  rows.forEach((r, i) => L.push(`| ${i + 1} | ${r.site.name} | ${r.site.country} | ${STATUS[r.site.status]} | ${r.result.asi} | ${Math.round(r.result.confidence * 100)}% |`))
+  if (t.processes?.length) { L.push(`Processes at work at ${t.name}: ${t.processes.map(p => PROCESS_LABELS[p]).join('; ')}.`); L.push('') }
+  L.push('| Rank | Site | Country | Status | Analog Similarity Index | Data confidence | Shared processes |')
+  L.push('|---|---|---|---|---|---|---|')
+  rows.forEach((r, i) => L.push(`| ${i + 1} | ${r.site.name} | ${r.site.country} | ${STATUS[r.site.status]} | ${r.result.asi} | ${Math.round(r.result.confidence * 100)}% | ${sharedProcesses(r.site, t).map(p => PROCESS_LABELS[p]).join('; ') || (r.site.processes ? 'none' : 'not assessed')} |`))
   L.push('')
   L.push('## Best three-site field campaign')
   L.push('')

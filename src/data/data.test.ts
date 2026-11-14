@@ -6,7 +6,8 @@ import { SOURCES } from './sources'
 import { MODULES } from './modules'
 import { GAPS } from './gaps'
 import { IMPACTS } from './impacts'
-import { FACTOR_KEYS, FACTOR_HINTS, FACTOR_LABELS } from './types'
+import { FACTOR_KEYS, FACTOR_HINTS, FACTOR_LABELS, PROCESS_KEYS, PROCESS_LABELS } from './types'
+import { rankTwins, sharedProcesses } from '../lib/twins'
 import { computeASI } from '../lib/scoring'
 
 const sourceIds = new Set(SOURCES.map(s => s.id))
@@ -67,6 +68,29 @@ describe('data integrity', () => {
       for (const v of Object.values(t.factors)) { expect(v).toBeGreaterThanOrEqual(0); expect(v).toBeLessThanOrEqual(1) }
       if (t.landable) expect(t.landing, t.id).toBeDefined()
     }
+  })
+
+  it('covers the dimensions the challenge names: dust and wind, habitability, and processes', () => {
+    for (const s of EARTH_SITES) {
+      expect(s.factors.wind.value, s.id).not.toBeNull()
+      expect(s.factors.life.value, s.id).not.toBeNull()
+      expect(s.processes?.length, s.id).toBeGreaterThan(0)
+    }
+    for (const t of TARGETS) {
+      expect(t.processes?.length, t.id).toBeGreaterThan(0)
+      for (const p of t.processes!) expect(PROCESS_LABELS[p]).toBeTruthy()
+      // The Moon has no wind and no life to look for; Mars has dust storms and is searched for signs of life
+      expect(t.factors.wind !== undefined, t.id).toBe(t.world === 'mars')
+      expect(t.factors.life !== undefined, t.id).toBe(t.world === 'mars')
+      const w = Object.values(t.profile).reduce((a, b) => a + (b ?? 0), 0)
+      expect(w, `${t.id} profile weights`).toBeCloseTo(1, 6)
+    }
+    for (const p of PROCESS_KEYS) expect(EARTH_SITES.some(s => s.processes!.includes(p)), p).toBe(true)
+    // Wind-carved, hyper-arid salt basins rank near the top for dusty Martian plains
+    const utopia = rankTwins(targetById('utopia'), EARTH_SITES).slice(0, 5).map(r => r.site.id)
+    expect(utopia).toContain('qaidam')
+    expect(sharedProcesses(EARTH_SITES.find(s => s.id === 'qaidam')!, targetById('gale'))).toEqual(['salt', 'wind'])
+    expect(sharedProcesses(EARTH_SITES.find(s => s.id === 'mulu')!, targetById('shackleton'))).toEqual([])
   })
 
   it('missions point to real targets and have positive weights', () => {

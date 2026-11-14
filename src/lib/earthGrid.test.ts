@@ -40,9 +40,11 @@ describe('global screening grid', () => {
     expect(g.values.isolation[cellAt(g, -80, 60)]).toBe(1)
     expect(placeOf(g, uyuni).name).toContain('Bolivia')
   })
-  it('gives 13 factors per cell, leaving the unscreenable ones for the live probe', () => {
+  it('gives 15 factors per cell, leaving the unscreenable ones for the live probe', () => {
     const f = cellFactors(g, cellAt(g, -24.08, -70.17))
-    expect(Object.keys(f)).toHaveLength(13)
+    expect(Object.keys(f)).toHaveLength(15)
+    expect(f.wind.value).toBeNull()
+    expect(f.life.value).toBeGreaterThan(0.85) // the Atacama: almost no liquid water
     expect(f.roughness.value).toBeNull()
     expect(f.anorthosite.value).toBeNull()
     expect(f.caves.value).toBeNull()

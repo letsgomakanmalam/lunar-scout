@@ -7,12 +7,17 @@
  * using the greedy maximum-coverage method (provably within 63% of the best possible set, and in
  * practice usually optimal for small k).
  */
-import type { EarthSite, FactorKey, Mission, PlanetTarget } from '../data/types'
+import type { EarthSite, FactorKey, Mission, PlanetTarget, ProcessKey } from '../data/types'
 import { computeASI, factorSimilarity, type ScanResult } from './scoring'
 
 /** The target's crew profile as a scoring mission, so Twin finder scores use the same ASI formula. */
 export function profileMission(t: PlanetTarget): Mission {
   return { id: `profile-${t.id}`, title: t.name, brief: '', targetId: t.id, weights: t.profile, passAsi: 0, reward: 0, equipmentTip: '' }
+}
+
+/** Processes at work at both the Earth site and the Moon or Mars site: where the analogy goes deeper than looks. */
+export function sharedProcesses(site: Pick<EarthSite, 'processes'>, t: Pick<PlanetTarget, 'processes'>): ProcessKey[] {
+  return (t.processes ?? []).filter(p => site.processes?.includes(p))
 }
 
 export interface TwinRow { site: EarthSite; result: ScanResult }

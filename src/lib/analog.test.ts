@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { dayLength, declination, grazingDays, lightWindows, lowSunValue, lunarMaxSun, noonHeight } from './sun'
-import { climateFactors, craterFactor, looksLikeSea, ndviFactor, parseElevations, parseMacrostrat, parseNdvi, parsePower, probeFactors, probeSite, reliefFactor, reliefGrid, rockFactors } from './probe'
+import { windFactor, climateFactors, craterFactor, looksLikeSea, ndviFactor, parseElevations, parseMacrostrat, parseNdvi, parsePower, probeFactors, probeSite, reliefFactor, reliefGrid, rockFactors } from './probe'
 import { elevationUrl, geologyUrl, ndviUrl, parsePlace, powerUrl, runProbe } from './probeFetch'
 import { coverage, planCampaign, rankTwins } from './twins'
 import { passportJson, passportMarkdown, slug, twinReportMarkdown, matchesFor } from './passport'
@@ -111,7 +111,45 @@ describe('field probe converters', () => {
     expect(craterFactor(35.0275, -111.02278).raw).toMatch(/Meteor Crater/)
     expect(craterFactor(0, -150).value).toBe(0)
   })
-  it('builds a full 13-factor discovery, leaving caves and remoteness as no data', () => {
+  it('measures wind and blowing dust, and how many months have liquid water', () => {
+    // A hyper-arid desert: warm all year, almost no rain, a steady breeze
+    const desert = parsePower({ ...POWER, properties: { parameter: { ...POWER.properties.parameter, PRECTOTCORR: monthly(Array(12).fill(0.01), 0.01), WS2M: { ANN: 3.5 } } } })!
+    expect(desert.wetMonths).toBe(0)
+    expect(desert.windMs).toBe(3.5)
+    expect(climateFactors(desert).life!.value).toBe(1)
+    // A rainy place with a frozen winter: liquid water only in the months above 0 °C
+    const boreal = parsePower({ ...POWER, properties: { parameter: { ...POWER.properties.parameter, T2M: monthly([-20, -15, -8, -1, 6, 12, 15, 13, 7, 0.5, -9, -16], -1.3), PRECTOTCORR: monthly(Array(12).fill(2), 2) } } })!
+    expect(boreal.wetMonths).toBe(6)
+    expect(climateFactors(boreal).life!.value).toBe(0.5)
+    expect(boreal.windMs).toBeNull()
+    // Wind only raises dust from dry, bare ground
+    expect(windFactor(6, 1, 1)!.value).toBe(1)
+    expect(windFactor(6, 0, 0)!.value).toBe(0)
+    expect(windFactor(3.5, 1, 0.8)!.value).toBeCloseTo(0.45, 2)
+    expect(windFactor(0.5, 1, 1)!.value).toBe(0)
+    expect(windFactor(4, null, null)).toBeNull()
+    const f = probeFactors(-24.08, -70.17, { climate: desert, ndvi: 0.1 })
+    expect(f.wind.value).toBeCloseTo(0.5, 1)
+    expect(f.wind.raw).toMatch(/3\.5 m\/s/)
+    expect(f.life.raw).toMatch(/0 months/)
+    // Without wind data the factor is simply missing, never guessed
+    expect(probeFactors(-24.08, -70.17, { climate: parsePower(POWER), ndvi: 0.1 }).wind.value).toBeNull()
+  })
+  it('asks NASA POWER for wind, and carries on without it if the service refuses', async () => {
+    expect(powerUrl(1, 2)).toContain('WS2M')
+    const asked: string[] = []
+    const fake = (async (url: string) => {
+      asked.push(url)
+      if (url.includes('power.larc') && url.includes('WS2M')) return { ok: false, status: 422, json: async () => ({}) }
+      if (url.includes('power.larc')) return { ok: true, status: 200, json: async () => POWER }
+      return { ok: false, status: 500, json: async () => ({}) }
+    }) as unknown as typeof fetch
+    const res = await runProbe(-24.08, -70.17, { fetch: fake, skipPlace: true, timeoutMs: 500 })
+    expect(res.climate?.rangeC).toBe(17.4)
+    expect(res.climate?.windMs ?? null).toBeNull()
+    expect(asked.filter(u => u.includes('power.larc'))).toHaveLength(2)
+  })
+  it('builds a full 15-factor discovery, leaving caves and remoteness as no data', () => {
     const f = probeFactors(-24.08, -70.17, { climate: parsePower(POWER), ndvi: 0.1, geology: parseMacrostrat(MACRO), elevations: [1000, 1100, 1180, 1050] })
     expect(Object.keys(f).sort()).toEqual([...FACTOR_KEYS].sort())
     expect(f.caves.value).toBeNull()
@@ -199,7 +237,9 @@ describe('reports', () => {
     expect(md).toContain('Connecting Ridge')
     expect(md).toContain('Days when the Sun stays below 7°')
     const j = passportJson(svalbard, 'Analog Scout')
-    expect(Object.keys(j.factors)).toHaveLength(13)
+    expect(Object.keys(j.factors)).toHaveLength(15)
+    expect(j.site.processes).toEqual(['volcanism', 'ice'])
+    expect(md).toContain('Shared processes')
     expect(j.matches).toHaveLength(TARGETS.length)
     expect(j.lightWindows.length).toBeGreaterThan(0)
     expect(matchesFor(svalbard)[0].asi).toBeGreaterThanOrEqual(matchesFor(svalbard)[1].asi)
